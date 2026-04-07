@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: smart-campus-navigation
+  datasource:
+    url: jdbc:mysql://localhost:3306/campus_navigation?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
+    username: root
+    password: your_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  thymeleaf:
+    cache: false
+
+amap:
+  js-key: your_amap_js_key
+  web-service-key: your_amap_web_service_key
+
+qweather:
+  api-key: your_qweather_api_key
