@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nuist.pengbo.smartcampusnavigation.mapper.CoveredPathNodeMapper">
+
+    <resultMap id="CoveredPathNodeResultMap" type="com.nuist.pengbo.smartcampusnavigation.entity.CoveredPathNode">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="longitude" column="longitude"/>
+        <result property="latitude" column="latitude"/>
+        <result property="description" column="description"/>
+        <result property="priority" column="priority"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectEnabledNodes" resultMap="CoveredPathNodeResultMap">
+        SELECT id, name, longitude, latitude, description, priority, enabled, created_at, updated_at
+        FROM covered_path_node
+        WHERE enabled = 1
+        ORDER BY priority DESC, id ASC
+    </select>
+</mapper>

@@ -1,6 +1,15 @@
 (function () {
     const NUIST_CAMPUS_CENTER = [118.715422, 32.194426];
     const WEATHER_REFRESH_INTERVAL_MS = 60 * 1000;
+    const CLASS_PERIOD_STARTS = [
+        { period: 1, minuteOfDay: 8 * 60 },
+        { period: 2, minuteOfDay: 10 * 60 + 10 },
+        { period: 3, minuteOfDay: 13 * 60 + 45 },
+        { period: 4, minuteOfDay: 15 * 60 + 55 },
+        { period: 5, minuteOfDay: 18 * 60 + 45 },
+        { period: 6, minuteOfDay: 20 * 60 + 35 }
+    ];
+    const CLASS_PEAK_LEAD_MINUTES = 20;
 
     const state = {
         pois: [],
@@ -59,20 +68,22 @@
         suggestionTitle: document.getElementById("suggestion-title"),
         suggestionList: document.getElementById("suggestion-list"),
         suggestionStatus: document.getElementById("suggestion-status"),
+        classPeakStatus: document.getElementById("class-peak-status"),
         mapStatus: document.getElementById("map-status")
     };
 
-    function init() {
+    async function init() {
         bindEvents();
-        renderTypeOptions(state.allPoiTypes, "");
+        await loadPoiTypes();
         renderRouteSelection();
         loadWeatherSummary();
         startWeatherAutoRefresh();
+        updateClassPeakStatus();
         loadContextSuggestions({
             sceneType: "home"
         });
         initMap();
-        runSearch();
+        await runSearch();
     }
 
     function bindEvents() {
@@ -134,10 +145,6 @@
             const query = params.toString() ? "?" + params.toString() : "";
             const pois = await fetchApi("/api/v1/pois" + query);
             state.pois = Array.isArray(pois) ? pois : [];
-            if (!name && !type) {
-                state.allPoiTypes = extractPoiTypes(state.pois);
-            }
-            renderTypeOptions(state.allPoiTypes, type);
 
             renderResultList();
             setFeedback("Loaded " + state.pois.length + " POI(s).");
@@ -158,6 +165,18 @@
         } catch (error) {
             resetPageStateAfterSearchError();
             setFeedback(error.message || "Search failed.");
+        }
+    }
+
+    async function loadPoiTypes() {
+        try {
+            const types = await fetchApi("/api/v1/pois/types");
+            state.allPoiTypes = Array.isArray(types) ? types : [];
+            renderTypeOptions(state.allPoiTypes, normalizeInput(elements.searchType.value));
+        } catch (error) {
+            state.allPoiTypes = [];
+            renderTypeOptions(state.allPoiTypes, "");
+            setFeedback(error.message || "Failed to load POI types.");
         }
     }
 
@@ -204,25 +223,6 @@
                 "<span class=\"result-meta\">POI</span>" +
                 "</div>";
             elements.resultList.appendChild(item);
-        });
-    }
-
-    function extractPoiTypes(pois) {
-        if (!Array.isArray(pois) || pois.length === 0) {
-            return [];
-        }
-        const types = [];
-        const seen = new Set();
-        pois.forEach(function (poi) {
-            const type = normalizeText(poi && poi.type, "");
-            if (!type || seen.has(type)) {
-                return;
-            }
-            seen.add(type);
-            types.push(type);
-        });
-        return types.sort(function (a, b) {
-            return a.localeCompare(b);
         });
     }
 
@@ -403,7 +403,58 @@
         }
         state.weatherRefreshTimer = window.setInterval(function () {
             loadWeatherSummary();
+            updateClassPeakStatus();
         }, WEATHER_REFRESH_INTERVAL_MS);
+    }
+
+    function updateClassPeakStatus() {
+        if (!elements.classPeakStatus) {
+            return;
+        }
+
+        const now = new Date();
+        const day = now.getDay();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        const minuteOfDay = hour * 60 + minute;
+
+        const isWorkday = day >= 1 && day <= 5;
+        const currentPeak = findCurrentClassPeak(minuteOfDay);
+        const inClassPeak = isWorkday && currentPeak !== null;
+
+        if (inClassPeak) {
+            elements.classPeakStatus.textContent =
+                "Class peak (Period " + currentPeak.period + " starts at " + currentPeak.startLabel + "): leave 20 min earlier.";
+            elements.classPeakStatus.className = "class-peak-status peak-on";
+            return;
+        }
+
+        if (isWorkday) {
+            elements.classPeakStatus.textContent = "Not in class peak period.";
+        } else {
+            elements.classPeakStatus.textContent = "Not in class peak period (weekend).";
+        }
+        elements.classPeakStatus.className = "class-peak-status peak-off";
+    }
+
+    function findCurrentClassPeak(minuteOfDay) {
+        for (let i = 0; i < CLASS_PERIOD_STARTS.length; i += 1) {
+            const period = CLASS_PERIOD_STARTS[i];
+            const peakStart = period.minuteOfDay - CLASS_PEAK_LEAD_MINUTES;
+            if (minuteOfDay >= peakStart && minuteOfDay < period.minuteOfDay) {
+                return {
+                    period: period.period,
+                    startLabel: formatMinuteOfDay(period.minuteOfDay)
+                };
+            }
+        }
+        return null;
+    }
+
+    function formatMinuteOfDay(minuteOfDay) {
+        const hh = Math.floor(minuteOfDay / 60);
+        const mm = minuteOfDay % 60;
+        return String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0");
     }
 
     function renderWeatherSummary(weather) {
@@ -474,7 +525,7 @@
     }
 
     function renderSuggestions(suggestionData) {
-        const title = suggestionData && suggestionData.title ? suggestionData.title : "\u51fa\u884c\u63d0\u793a";
+        const title = suggestionData && suggestionData.title ? suggestionData.title : "Route Suggestions";
         const suggestions = suggestionData && Array.isArray(suggestionData.suggestions)
             ? suggestionData.suggestions
             : [];
@@ -484,7 +535,7 @@
 
         if (suggestions.length === 0) {
             const item = document.createElement("li");
-            item.textContent = "\u6682\u65e0\u63d0\u793a\uff0c\u53ef\u7ee7\u7eed\u641c\u7d22\u5730\u70b9\u6216\u89c4\u5212\u8def\u7ebf\u3002";
+            item.textContent = "No suggestions yet. Continue searching POIs or planning a route.";
             elements.suggestionList.appendChild(item);
         } else {
             suggestions.slice(0, 3).forEach(function (text) {
@@ -497,10 +548,10 @@
     }
 
     function renderSuggestionFallback(message) {
-        elements.suggestionTitle.textContent = "\u51fa\u884c\u63d0\u793a";
+        elements.suggestionTitle.textContent = "Route Suggestions";
         elements.suggestionList.innerHTML = "";
         const item = document.createElement("li");
-        item.textContent = "\u6682\u65f6\u65e0\u6cd5\u751f\u6210\u573a\u666f\u63d0\u793a\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002";
+        item.textContent = "Suggestions are temporarily unavailable. Please try again later.";
         elements.suggestionList.appendChild(item);
         elements.suggestionStatus.textContent = message || "Suggestions unavailable.";
     }

@@ -11,6 +11,8 @@ import java.util.List;
 public interface PoiMapper {
     List<Poi> selectByCondition(@Param("query") PoiQueryRequest query);
 
+    List<String> selectAllTypes();
+
     Poi selectById(@Param("id") Long id);
 
     int insert(Poi poi);

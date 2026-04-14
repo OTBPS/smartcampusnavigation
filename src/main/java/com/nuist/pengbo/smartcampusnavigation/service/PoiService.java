@@ -10,6 +10,8 @@ import java.util.List;
 public interface PoiService {
     List<PoiVO> list(PoiQueryRequest queryRequest);
 
+    List<String> listTypes();
+
     PoiVO getById(Long id);
 
     PoiVO create(PoiCreateRequest request);

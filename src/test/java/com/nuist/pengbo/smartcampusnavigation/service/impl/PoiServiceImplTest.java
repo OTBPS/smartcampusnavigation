@@ -6,6 +6,7 @@ import com.nuist.pengbo.smartcampusnavigation.dto.poi.PoiQueryRequest;
 import com.nuist.pengbo.smartcampusnavigation.dto.poi.PoiUpdateRequest;
 import com.nuist.pengbo.smartcampusnavigation.entity.Poi;
 import com.nuist.pengbo.smartcampusnavigation.mapper.PoiMapper;
+import com.nuist.pengbo.smartcampusnavigation.service.PoiLocalizationService;
 import com.nuist.pengbo.smartcampusnavigation.vo.poi.PoiVO;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class PoiServiceImplTest {
 
     @Mock
     private PoiMapper poiMapper;
+
+    @Mock
+    private PoiLocalizationService poiLocalizationService;
 
     @InjectMocks
     private PoiServiceImpl poiService;
@@ -58,6 +62,8 @@ class PoiServiceImplTest {
         storedPoi.setOpeningHours("08:00-22:00");
         storedPoi.setEnabled(true);
         when(poiMapper.selectById(1L)).thenReturn(storedPoi);
+        when(poiLocalizationService.localize(any(PoiVO.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         PoiVO result = poiService.create(request);
 
@@ -114,8 +120,37 @@ class PoiServiceImplTest {
 
         ArgumentCaptor<PoiQueryRequest> queryCaptor = ArgumentCaptor.forClass(PoiQueryRequest.class);
         verify(poiMapper).selectByCondition(queryCaptor.capture());
-        Assertions.assertEquals("library", queryCaptor.getValue().getName());
+        Assertions.assertNull(queryCaptor.getValue().getName());
         Assertions.assertNull(queryCaptor.getValue().getType());
         Assertions.assertTrue(queryCaptor.getValue().getEnabled());
+    }
+    @Test
+    void createShouldThrowBadRequestWhenTypeIsUnsupported() {
+        PoiCreateRequest request = new PoiCreateRequest();
+        request.setName("Test POI");
+        request.setType("unknown_type");
+        request.setLongitude(new BigDecimal("118.7116200"));
+        request.setLatitude(new BigDecimal("32.2023800"));
+        request.setDescription("test");
+        request.setOpeningHours("08:00-22:00");
+
+        Assertions.assertThrows(BusinessException.class, () -> poiService.create(request));
+    }
+
+    @Test
+    void updateShouldThrowBadRequestWhenOpeningHoursFormatIsInvalid() {
+        Poi existing = new Poi();
+        existing.setId(2L);
+        existing.setEnabled(true);
+        when(poiMapper.selectById(2L)).thenReturn(existing);
+
+        PoiUpdateRequest request = new PoiUpdateRequest();
+        request.setName("Main Library");
+        request.setType("library");
+        request.setLongitude(new BigDecimal("118.7134970"));
+        request.setLatitude(new BigDecimal("32.2030200"));
+        request.setOpeningHours("all day");
+
+        Assertions.assertThrows(BusinessException.class, () -> poiService.update(2L, request));
     }
 }

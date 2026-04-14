@@ -33,6 +33,11 @@ public class PoiController {
         return ApiResponse.success(poiService.list(queryRequest));
     }
 
+    @GetMapping("/types")
+    public ApiResponse<List<String>> listTypes() {
+        return ApiResponse.success(poiService.listTypes());
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<PoiVO> getById(@PathVariable Long id) {
         return ApiResponse.success(poiService.getById(id));

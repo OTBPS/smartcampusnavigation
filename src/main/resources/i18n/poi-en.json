@@ -1,0 +1,445 @@
+{
+  "pois": [
+    {
+      "id": 1,
+      "originalName": "Main Library",
+      "name": "Main Library",
+      "description": "Main study and reading center on campus.",
+      "aliases": ["图书馆", "主图书馆"]
+    },
+    {
+      "id": 2,
+      "originalName": "North Canteen",
+      "name": "North Canteen",
+      "description": "Primary dining hall near teaching buildings.",
+      "aliases": ["北食堂", "北苑食堂"]
+    },
+    {
+      "id": 3,
+      "originalName": "Building A Teaching Block",
+      "name": "Building A Teaching Block",
+      "description": "General classrooms and lecture halls.",
+      "aliases": ["A楼", "教学楼A"]
+    },
+    {
+      "id": 4,
+      "originalName": "Student Affairs Center",
+      "name": "Student Affairs Center",
+      "description": "Student card, registration, and campus services.",
+      "aliases": ["学生事务中心", "学生服务中心"]
+    },
+    {
+      "id": 5,
+      "originalName": "Campus Gymnasium",
+      "name": "Campus Gymnasium",
+      "description": "Indoor basketball and fitness facilities.",
+      "aliases": ["体育馆", "校体育馆"]
+    },
+    {
+      "id": 6,
+      "originalName": "南京信息工程大学图书馆",
+      "name": "NUIST Main Library",
+      "description": "Main campus library building.",
+      "aliases": ["南京信息工程大学图书馆", "图书馆", "南信大图书馆"]
+    },
+    {
+      "id": 7,
+      "originalName": "南京信息工程大学大学生活动中心",
+      "name": "NUIST Student Activity Center",
+      "description": "Student activity center for events and clubs.",
+      "aliases": ["大学生活动中心", "学生活动中心"]
+    },
+    {
+      "id": 8,
+      "originalName": "南京信息工程大学大学生活动中心小剧场",
+      "name": "NUIST Student Activity Center Theater",
+      "description": "Small theater inside the student activity center.",
+      "aliases": ["小剧场", "活动中心小剧场"]
+    },
+    {
+      "id": 9,
+      "originalName": "南京信息工程大学大礼堂",
+      "name": "NUIST Grand Auditorium",
+      "description": "Campus auditorium for lectures and events.",
+      "aliases": ["大礼堂", "礼堂"]
+    },
+    {
+      "id": 10,
+      "originalName": "南京信息工程大学东苑体育馆",
+      "name": "NUIST East Campus Gymnasium",
+      "description": "Indoor gymnasium in East campus zone.",
+      "aliases": ["东苑体育馆", "东苑馆"]
+    },
+    {
+      "id": 11,
+      "originalName": "南京信息工程大学东苑田径场",
+      "name": "NUIST East Campus Track and Field",
+      "description": "East campus athletics track and field.",
+      "aliases": ["东苑田径场", "东苑操场"]
+    },
+    {
+      "id": 12,
+      "originalName": "南京信息工程大学风云赛场",
+      "name": "NUIST Fengyun Sports Field",
+      "description": "Outdoor sports field near campus center.",
+      "aliases": ["风云赛场", "风云操场"]
+    },
+    {
+      "id": 13,
+      "originalName": "南京信息工程大学-中苑主田径场",
+      "name": "NUIST Zhongyuan Main Track and Field",
+      "description": "Main Zhongyuan athletics field.",
+      "aliases": ["中苑主田径场", "中苑主操场"]
+    },
+    {
+      "id": 14,
+      "originalName": "南京信息工程大学西苑操场",
+      "name": "NUIST West Campus Playground",
+      "description": "West campus playground and sports field.",
+      "aliases": ["西苑操场", "西苑田径场"]
+    },
+    {
+      "id": 15,
+      "originalName": "南京信息工程大学信息科技大楼",
+      "name": "NUIST Information Technology Building",
+      "description": "Information technology teaching building.",
+      "aliases": ["信息科技大楼", "信科大楼"]
+    },
+    {
+      "id": 16,
+      "originalName": "南京信息工程大学培训楼",
+      "name": "NUIST Training Building",
+      "description": "Training and classroom building.",
+      "aliases": ["培训楼"]
+    },
+    {
+      "id": 17,
+      "originalName": "南京信息工程大学亚培楼",
+      "name": "NUIST Yapei Building",
+      "description": "Yapei teaching building.",
+      "aliases": ["亚培楼"]
+    },
+    {
+      "id": 18,
+      "originalName": "南京信息工程大学文德楼南区",
+      "name": "NUIST Wende Building (South Zone)",
+      "description": "Wende building south zone.",
+      "aliases": ["文德楼南区", "文德楼"]
+    },
+    {
+      "id": 19,
+      "originalName": "南京信息工程大学自动化学院",
+      "name": "NUIST School of Automation",
+      "description": "School of Automation.",
+      "aliases": ["自动化学院"]
+    },
+    {
+      "id": 20,
+      "originalName": "南京信息工程大学环境科学与工程学院",
+      "name": "NUIST School of Environmental Science and Engineering",
+      "description": "School of Environmental Science and Engineering.",
+      "aliases": ["环境科学与工程学院", "环工学院"]
+    },
+    {
+      "id": 21,
+      "originalName": "南京信息工程大学电子信息工程学院",
+      "name": "NUIST School of Electronic and Information Engineering",
+      "description": "School of Electronic and Information Engineering.",
+      "aliases": ["电子信息工程学院", "电信学院"]
+    },
+    {
+      "id": 22,
+      "originalName": "南京信息工程大学地理与遥感学院",
+      "name": "NUIST School of Geography and Remote Sensing",
+      "description": "School of Geography and Remote Sensing.",
+      "aliases": ["地理与遥感学院", "地遥学院"]
+    },
+    {
+      "id": 23,
+      "originalName": "南京信息工程大学海洋科学学院",
+      "name": "NUIST School of Marine Sciences",
+      "description": "School of Marine Sciences.",
+      "aliases": ["海洋科学学院", "海科院"]
+    },
+    {
+      "id": 24,
+      "originalName": "南京信息工程大学-大气科学学院",
+      "name": "NUIST School of Atmospheric Sciences",
+      "description": "School of Atmospheric Sciences.",
+      "aliases": ["大气科学学院", "大气院"]
+    },
+    {
+      "id": 25,
+      "originalName": "南京信息工程大学商学院",
+      "name": "NUIST Business School",
+      "description": "Business school building.",
+      "aliases": ["商学院"]
+    },
+    {
+      "id": 26,
+      "originalName": "南京信息工程大学-艺术学院",
+      "name": "NUIST School of Arts",
+      "description": "School of Arts building.",
+      "aliases": ["艺术学院"]
+    },
+    {
+      "id": 27,
+      "originalName": "南京信息工程大学食堂",
+      "name": "NUIST Main Canteen",
+      "description": "Main campus canteen.",
+      "aliases": ["食堂", "主食堂", "南信大食堂"]
+    },
+    {
+      "id": 28,
+      "originalName": "南京信息工程大学西苑新食堂",
+      "name": "NUIST West Campus New Canteen",
+      "description": "West campus new canteen.",
+      "aliases": ["西苑新食堂", "西苑食堂"]
+    },
+    {
+      "id": 29,
+      "originalName": "南京信息工程大学-教职工食堂",
+      "name": "NUIST Faculty Canteen",
+      "description": "Faculty canteen.",
+      "aliases": ["教职工食堂", "教工食堂"]
+    },
+    {
+      "id": 30,
+      "originalName": "南京信息工程大学中苑老食堂",
+      "name": "NUIST Zhongyuan Old Canteen",
+      "description": "Old canteen in Zhongyuan.",
+      "aliases": ["中苑老食堂"]
+    },
+    {
+      "id": 31,
+      "originalName": "中苑新食堂",
+      "name": "NUIST Zhongyuan New Canteen",
+      "description": "New canteen in Zhongyuan.",
+      "aliases": ["中苑新食堂"]
+    },
+    {
+      "id": 32,
+      "originalName": "南京信息工程大学信息中心",
+      "name": "NUIST Information Center",
+      "description": "Campus information technology support center.",
+      "aliases": ["信息中心"]
+    },
+    {
+      "id": 33,
+      "originalName": "南京信息工程大学现代教育技术中心",
+      "name": "NUIST Modern Educational Technology Center",
+      "description": "Educational technology support and services center.",
+      "aliases": ["现代教育技术中心"]
+    },
+    {
+      "id": 34,
+      "originalName": "南京信息工程大学学生事务与发展中心",
+      "name": "NUIST Student Affairs and Development Center",
+      "description": "Student services, development, and administrative support center.",
+      "aliases": ["学生事务与发展中心", "学生发展中心"]
+    },
+    {
+      "id": 35,
+      "originalName": "南京信息工程大学-地理科学学院",
+      "name": "NUIST School of Geographical Sciences",
+      "description": "School of Geographical Sciences.",
+      "aliases": ["地理科学学院"]
+    },
+    {
+      "id": 36,
+      "originalName": "南京信息工程大学软件工程与信息服务实践教育中心",
+      "name": "NUIST Software Engineering and Information Service Practice Center",
+      "description": "Practice education center for software engineering and information services.",
+      "aliases": ["软件工程与信息服务实践教育中心", "软件实践中心"]
+    },
+    {
+      "id": 37,
+      "originalName": "南京信息工程大学江苏省技术转移中心",
+      "name": "NUIST Jiangsu Technology Transfer Center",
+      "description": "Technology transfer and innovation cooperation center.",
+      "aliases": ["江苏省技术转移中心", "技术转移中心"]
+    },
+    {
+      "id": 38,
+      "originalName": "南京信息工程大学互联网工程实践教育中心",
+      "name": "NUIST Internet Engineering Practice Center",
+      "description": "Practice education center for internet engineering.",
+      "aliases": ["互联网工程实践教育中心", "互联网工程中心"]
+    },
+    {
+      "id": 39,
+      "originalName": "南京信息工程大学长望学院",
+      "name": "NUIST Changwang College",
+      "description": "Changwang College teaching and administration area.",
+      "aliases": ["长望学院"]
+    },
+    {
+      "id": 40,
+      "originalName": "南京信息工程大学生态研究院",
+      "name": "NUIST Ecological Research Institute",
+      "description": "Research institute focused on ecology and environment.",
+      "aliases": ["生态研究院"]
+    },
+    {
+      "id": 41,
+      "originalName": "南京信息工程大学应急管理学院",
+      "name": "NUIST School of Emergency Management",
+      "description": "School of Emergency Management.",
+      "aliases": ["应急管理学院"]
+    },
+    {
+      "id": 42,
+      "originalName": "南京信息工程大学集成电路学院",
+      "name": "NUIST School of Integrated Circuits",
+      "description": "School of Integrated Circuits.",
+      "aliases": ["集成电路学院"]
+    },
+    {
+      "id": 43,
+      "originalName": "南京信息工程大学遥感学院",
+      "name": "NUIST School of Remote Sensing",
+      "description": "School of Remote Sensing.",
+      "aliases": ["遥感学院"]
+    },
+    {
+      "id": 44,
+      "originalName": "南京信息工程大学遥感与测绘工程学院",
+      "name": "NUIST School of Remote Sensing and Geomatics Engineering",
+      "description": "School of Remote Sensing and Geomatics Engineering.",
+      "aliases": ["遥感与测绘工程学院", "测绘学院"]
+    },
+    {
+      "id": 45,
+      "originalName": "南京信息工程大学数学与统计学院",
+      "name": "NUIST School of Mathematics and Statistics",
+      "description": "School of Mathematics and Statistics.",
+      "aliases": ["数学与统计学院", "数统学院"]
+    },
+    {
+      "id": 46,
+      "originalName": "南京信息工程大学物理与光电工程学院",
+      "name": "NUIST School of Physics and Optoelectronic Engineering",
+      "description": "School of Physics and Optoelectronic Engineering.",
+      "aliases": ["物理与光电工程学院", "物电学院"]
+    },
+    {
+      "id": 47,
+      "originalName": "南京信息工程大学中苑教职工活动中心",
+      "name": "NUIST Zhongyuan Faculty Activity Center",
+      "description": "Faculty activity center in Zhongyuan area.",
+      "aliases": ["中苑教职工活动中心"]
+    },
+    {
+      "id": 48,
+      "originalName": "南京信息工程大学-化学与材料学院",
+      "name": "NUIST School of Chemistry and Materials",
+      "description": "School of Chemistry and Materials.",
+      "aliases": ["化学与材料学院", "化材学院"]
+    },
+    {
+      "id": 49,
+      "originalName": "南京信息工程大学气候变化与公共政策研究院",
+      "name": "NUIST Institute of Climate Change and Public Policy",
+      "description": "Research institute for climate change and public policy.",
+      "aliases": ["气候变化与公共政策研究院", "气候政策研究院"]
+    },
+    {
+      "id": 50,
+      "originalName": "南京信息工程大学维世德法律研究院",
+      "name": "NUIST Wisde Law Research Institute",
+      "description": "Law research institute and legal studies center.",
+      "aliases": ["维世德法律研究院", "法律研究院"]
+    },
+    {
+      "id": 51,
+      "originalName": "南京信息工程大学(中苑)-大学生体质测试中心",
+      "name": "NUIST Zhongyuan Student Physical Fitness Test Center",
+      "description": "Student physical fitness test center in Zhongyuan area.",
+      "aliases": ["大学生体质测试中心", "体测中心"]
+    },
+    {
+      "id": 52,
+      "originalName": "南京信息工程大学语言文化学院",
+      "name": "NUIST School of Language and Culture",
+      "description": "School of Language and Culture.",
+      "aliases": ["语言文化学院"]
+    },
+    {
+      "id": 53,
+      "originalName": "南京信息工程大学水文与水资源工程学院",
+      "name": "NUIST School of Hydrology and Water Resources Engineering",
+      "description": "School of Hydrology and Water Resources Engineering.",
+      "aliases": ["水文与水资源工程学院", "水文学院"]
+    },
+    {
+      "id": 54,
+      "originalName": "南京信息工程大学",
+      "name": "NUIST Main Campus",
+      "description": "Main campus area of NUIST.",
+      "aliases": ["南京信息工程大学", "南信大"]
+    },
+    {
+      "id": 55,
+      "originalName": "南京信息工程大学应用技术学院",
+      "name": "NUIST School of Applied Technology",
+      "description": "School of Applied Technology.",
+      "aliases": ["应用技术学院"]
+    },
+    {
+      "id": 56,
+      "originalName": "南京信息工程大学气候与气象灾害协同创新中心",
+      "name": "NUIST Collaborative Innovation Center for Climate and Meteorological Disasters",
+      "description": "Collaborative innovation center for climate and meteorological disasters.",
+      "aliases": ["气候与气象灾害协同创新中心", "协同创新中心"]
+    },
+    {
+      "id": 57,
+      "originalName": "南京信息工程大学校史馆",
+      "name": "NUIST University History Museum",
+      "description": "Museum presenting the history of NUIST.",
+      "aliases": ["校史馆"]
+    },
+    {
+      "id": 58,
+      "originalName": "南京信息工程大学院士林",
+      "name": "NUIST Academician Grove",
+      "description": "Campus landmark garden area dedicated to academicians.",
+      "aliases": ["院士林"]
+    },
+    {
+      "id": 59,
+      "originalName": "南京信息工程大学研究生公寓",
+      "name": "NUIST Graduate Student Apartments",
+      "description": "Graduate student residential apartments.",
+      "aliases": ["研究生公寓", "研公寓"]
+    },
+    {
+      "id": 60,
+      "originalName": "南京信息工程大学科技产业处",
+      "name": "NUIST Science and Technology Industry Office",
+      "description": "Office for science and technology industry cooperation.",
+      "aliases": ["科技产业处"]
+    },
+    {
+      "id": 61,
+      "originalName": "南京信息工程大学信息化建设与管理处",
+      "name": "NUIST Informatization Construction and Management Office",
+      "description": "Office for campus digital infrastructure and management.",
+      "aliases": ["信息化建设与管理处", "信息化管理处"]
+    },
+    {
+      "id": 62,
+      "originalName": "南京信息工程大学沃特福德学院",
+      "name": "NUIST Waterford College",
+      "description": "Joint education college and teaching area.",
+      "aliases": ["沃特福德学院"]
+    },
+    {
+      "id": 63,
+      "originalName": "南京信息工程大学总务处",
+      "name": "NUIST General Affairs Office",
+      "description": "General affairs and campus logistics office.",
+      "aliases": ["总务处"]
+    }
+  ]
+}

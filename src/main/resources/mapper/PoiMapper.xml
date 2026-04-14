@@ -40,6 +40,15 @@
         WHERE id = #{id}
     </select>
 
+    <select id="selectAllTypes" resultType="java.lang.String">
+        SELECT DISTINCT type
+        FROM poi
+        WHERE type IS NOT NULL
+          AND type != ''
+          AND enabled = 1
+        ORDER BY type ASC
+    </select>
+
     <insert id="insert" parameterType="com.nuist.pengbo.smartcampusnavigation.entity.Poi" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO poi (name, type, longitude, latitude, description, opening_hours, enabled, created_at, updated_at)
         VALUES (#{name}, #{type}, #{longitude}, #{latitude}, #{description}, #{openingHours}, #{enabled}, NOW(), NOW())
