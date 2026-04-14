@@ -5,16 +5,31 @@ spring:
   application:
     name: smart-campus-navigation
   datasource:
-    url: jdbc:mysql://localhost:3306/campus_navigation?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
-    username: root
-    password: your_password
+    url: jdbc:mysql://localhost:3306/smart_campus_navigation?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:2004123po}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: 5000
+      validation-timeout: 3000
+      initialization-fail-timeout: 5000
   thymeleaf:
     cache: false
 
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
 amap:
-  js-key: your_amap_js_key
-  web-service-key: your_amap_web_service_key
+  js-key: 8d384515cb0bcac22a06862e06e600dc
+  security-js-code: c56cdb1e8c7ff71775749e8e0e40859f
+  web-service-key: ebef09fb48f3dc8140a8ed544f0bcc96
 
 qweather:
-  api-key: your_qweather_api_key
+  host: nc2pg7kpbt.re.qweatherapi.com
+  auth-type: api-key
+  api-key: 68404ed41b1e4ba492943aa90d680885
+  location: 118.7169,32.2072
+  lang: en
+  unit: m

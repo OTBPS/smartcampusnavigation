@@ -1,11 +1,164 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Campus Navigation</title>
+    <link rel="stylesheet" th:href="@{/css/base.css(v=${assetVersion})}" href="/css/base.css?v=dev">
 </head>
 <body>
-<h1>Smart Campus Navigation System</h1>
-<p>Project skeleton is running successfully.</p>
+<div class="app-shell">
+    <header class="topbar">
+        <div class="brand">Smart Campus Navigation</div>
+        <div class="topbar-subtitle">Campus POI Search and Location Display</div>
+    </header>
+
+    <main class="main-layout">
+        <aside class="left-panel">
+<section class="card">
+                <h2>Search POIs</h2>
+                <form id="poi-search-form" class="search-form">
+                    <label for="search-name">Name keyword</label>
+                    <input id="search-name" name="name" type="text" placeholder="e.g. Library">
+
+                    <label for="search-type">Type</label>
+                    <select id="search-type" name="type">
+                        <option value="">All types</option>
+                    </select>
+
+                    <div class="search-actions">
+                        <button type="submit" class="btn-primary">Search</button>
+                        <button type="button" id="reset-btn" class="btn-secondary">Reset</button>
+                    </div>
+                </form>
+                <p id="search-feedback" class="helper-text">Ready.</p>
+            </section>
+
+<section class="card results-card">
+                <div class="card-head">
+                    <h2>Results</h2>
+                    <span id="result-count" class="count-badge">0</span>
+                </div>
+                <ul id="result-list" class="result-list"></ul>
+                <div id="result-empty" class="empty-state">No POIs found. Try another keyword or type.</div>
+            </section>
+
+<section class="card detail-card">
+                <h2>POI Details</h2>
+                <div id="detail-empty" class="empty-state">Select a POI from the list to view details.</div>
+                <div id="detail-content" class="detail-content hidden">
+                    <div class="detail-title-row">
+                        <h3 id="detail-name"></h3>
+                        <span id="detail-enabled" class="status-pill"></span>
+                    </div>
+                    <div class="detail-actions">
+                        <button type="button" id="set-start-btn" class="btn-secondary">Set As Start</button>
+                        <button type="button" id="set-end-btn" class="btn-secondary">Set As Destination</button>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <span class="detail-label">Type</span>
+                            <span id="detail-type" class="detail-value"></span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Opening Hours</span>
+                            <span id="detail-opening-hours" class="detail-value"></span>
+                        </div>
+                        <div class="detail-item detail-full">
+                            <span class="detail-label">Description</span>
+                            <span id="detail-description" class="detail-value"></span>
+                        </div>
+                        <div class="detail-item detail-full">
+                            <span class="detail-label">Coordinates</span>
+                            <span id="detail-coordinates" class="detail-value"></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+<section class="card route-card">
+                <h2>Walking Route</h2>
+                <div class="route-selection">
+                    <div class="route-point">
+                        <span class="route-point-label">Start</span>
+                        <span id="route-start-name" class="route-point-value">Not selected</span>
+                    </div>
+                    <div class="route-point">
+                        <span class="route-point-label">Destination</span>
+                        <span id="route-end-name" class="route-point-value">Not selected</span>
+                    </div>
+                </div>
+                <div class="route-actions">
+                    <button type="button" id="plan-route-btn" class="btn-primary">Start Route Planning</button>
+                    <button type="button" id="clear-route-btn" class="btn-secondary">Clear Route</button>
+                </div>
+                <p id="route-feedback" class="helper-text">Select start and destination POIs first.</p>
+                <div id="route-summary" class="route-summary hidden">
+                    <div class="route-summary-item">
+                        <span class="route-summary-label">Distance</span>
+                        <span id="route-distance" class="route-summary-value">-</span>
+                    </div>
+                    <div class="route-summary-item">
+                        <span class="route-summary-label">Duration</span>
+                        <span id="route-duration" class="route-summary-value">-</span>
+                    </div>
+                    <div class="route-steps-wrap">
+                        <span class="route-summary-label">Steps</span>
+                        <ol id="route-steps" class="route-steps"></ol>
+                    </div>
+                </div>
+            </section>
+
+<section class="card weather-card">
+                <h2>Current Weather</h2>
+                <p id="weather-status" class="helper-text">Loading weather...</p>
+                <div class="weather-grid">
+                    <div class="weather-item">
+                        <span class="detail-label">Weather</span>
+                        <span id="weather-text" class="detail-value">-</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="detail-label">Temperature</span>
+                        <span id="weather-temp" class="detail-value">-</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="detail-label">Feels Like</span>
+                        <span id="weather-feels-like" class="detail-value">-</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="detail-label">Humidity</span>
+                        <span id="weather-humidity" class="detail-value">-</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="detail-label">Wind</span>
+                        <span id="weather-wind" class="detail-value">-</span>
+                    </div>
+                    <div class="weather-item">
+                        <span class="detail-label">Updated</span>
+                        <span id="weather-updated" class="detail-value">-</span>
+                    </div>
+                </div>
+            </section>
+
+<section class="card suggestion-card">
+                <h2 id="suggestion-title">路线出行提示</h2>
+                <ul id="suggestion-list" class="suggestion-list"></ul>
+                <p id="suggestion-status" class="helper-text">Loading suggestions...</p>
+            </section>
+        </aside>
+
+        <section class="map-panel">
+            <div id="map-container" class="map-container"></div>
+            <div id="map-status" class="map-status hidden"></div>
+        </section>
+    </main>
+</div>
+<script th:inline="javascript">
+    window.APP_CONFIG = {
+        amapJsKey: /*[[${amapJsKey}]]*/ '',
+        amapSecurityJsCode: /*[[${amapSecurityJsCode}]]*/ ''
+    };
+</script>
+<script th:src="@{/js/index.js(v=${assetVersion})}" src="/js/index.js?v=dev"></script>
 </body>
 </html>
