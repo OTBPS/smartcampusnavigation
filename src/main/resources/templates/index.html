@@ -56,6 +56,8 @@
                     <div class="detail-actions">
                         <button type="button" id="set-start-btn" class="btn-secondary">Set As Start</button>
                         <button type="button" id="set-end-btn" class="btn-secondary">Set As Destination</button>
+                        <button type="button" id="set-via-btn" class="btn-secondary">Set As Waypoint</button>
+                        <button type="button" id="locate-current-btn" class="btn-secondary">Locate Current Position</button>
                     </div>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -79,8 +81,15 @@
             </section>
 
 <section class="card route-card">
-                <h2>Walking Route</h2>
+                <h2>Route Planning</h2>
                 <div class="route-selection">
+                    <div class="route-point">
+                        <label class="route-point-label" for="route-mode">Mode</label>
+                        <select id="route-mode" class="route-mode-select">
+                            <option value="walking">Walking</option>
+                            <option value="cycling">Cycling</option>
+                        </select>
+                    </div>
                     <div class="route-point">
                         <span class="route-point-label">Start</span>
                         <span id="route-start-name" class="route-point-value">Not selected</span>
@@ -88,6 +97,10 @@
                     <div class="route-point">
                         <span class="route-point-label">Destination</span>
                         <span id="route-end-name" class="route-point-value">Not selected</span>
+                    </div>
+                    <div class="route-point">
+                        <span class="route-point-label">Waypoint</span>
+                        <span id="route-via-name" class="route-point-value">Not selected</span>
                     </div>
                 </div>
                 <div class="route-actions">

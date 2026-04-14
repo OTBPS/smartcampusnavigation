@@ -29,14 +29,35 @@ public class RouteController {
     @GetMapping("/walking")
     public ApiResponse<WalkingRouteVO> planWalkingRoute(@RequestParam BigDecimal originLng,
                                                         @RequestParam BigDecimal originLat,
+                                                        @RequestParam(required = false, name = "viaLng") List<BigDecimal> viaLngList,
+                                                        @RequestParam(required = false, name = "viaLat") List<BigDecimal> viaLatList,
                                                         @RequestParam BigDecimal destinationLng,
                                                         @RequestParam BigDecimal destinationLat) {
         WalkingRouteQueryDTO queryDTO = new WalkingRouteQueryDTO();
         queryDTO.setOriginLng(originLng);
         queryDTO.setOriginLat(originLat);
+        queryDTO.setViaLngList(viaLngList);
+        queryDTO.setViaLatList(viaLatList);
         queryDTO.setDestinationLng(destinationLng);
         queryDTO.setDestinationLat(destinationLat);
         return ApiResponse.success(routeService.planWalkingRoute(queryDTO));
+    }
+
+    @GetMapping("/cycling")
+    public ApiResponse<WalkingRouteVO> planCyclingRoute(@RequestParam BigDecimal originLng,
+                                                         @RequestParam BigDecimal originLat,
+                                                         @RequestParam(required = false, name = "viaLng") List<BigDecimal> viaLngList,
+                                                         @RequestParam(required = false, name = "viaLat") List<BigDecimal> viaLatList,
+                                                         @RequestParam BigDecimal destinationLng,
+                                                         @RequestParam BigDecimal destinationLat) {
+        WalkingRouteQueryDTO queryDTO = new WalkingRouteQueryDTO();
+        queryDTO.setOriginLng(originLng);
+        queryDTO.setOriginLat(originLat);
+        queryDTO.setViaLngList(viaLngList);
+        queryDTO.setViaLatList(viaLatList);
+        queryDTO.setDestinationLng(destinationLng);
+        queryDTO.setDestinationLat(destinationLat);
+        return ApiResponse.success(routeService.planCyclingRoute(queryDTO));
     }
 
     @GetMapping("/shelter/nodes")

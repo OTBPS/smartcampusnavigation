@@ -19,13 +19,18 @@
         weather: null,
         map: null,
         marker: null,
+        currentLocationMarker: null,
+        currentLocation: null,
         infoWindow: null,
         mapReady: false,
         routeStartPoi: null,
         routeEndPoi: null,
+        routeViaPois: [],
         routeStartMarker: null,
         routeEndMarker: null,
+        routeViaMarkers: [],
         routeLine: null,
+        routeMode: "walking",
         weatherRefreshTimer: null,
         weatherLoading: false
     };
@@ -49,8 +54,12 @@
         detailCoordinates: document.getElementById("detail-coordinates"),
         setStartBtn: document.getElementById("set-start-btn"),
         setEndBtn: document.getElementById("set-end-btn"),
+        setViaBtn: document.getElementById("set-via-btn"),
+        locateCurrentBtn: document.getElementById("locate-current-btn"),
         routeStartName: document.getElementById("route-start-name"),
         routeEndName: document.getElementById("route-end-name"),
+        routeViaName: document.getElementById("route-via-name"),
+        routeMode: document.getElementById("route-mode"),
         planRouteBtn: document.getElementById("plan-route-btn"),
         clearRouteBtn: document.getElementById("clear-route-btn"),
         routeFeedback: document.getElementById("route-feedback"),
@@ -118,9 +127,24 @@
             assignRoutePoint("end");
         });
 
+        elements.setViaBtn.addEventListener("click", function () {
+            assignRoutePoint("via");
+        });
+
+        elements.locateCurrentBtn.addEventListener("click", function () {
+            locateCurrentPosition();
+        });
+
         elements.planRouteBtn.addEventListener("click", function () {
             planWalkingRoute();
         });
+
+        if (elements.routeMode) {
+            elements.routeMode.addEventListener("change", function () {
+                state.routeMode = normalizeRouteMode(elements.routeMode.value);
+                setRouteFeedback(capitalizeRouteMode(state.routeMode) + " mode selected.");
+            });
+        }
 
         elements.clearRouteBtn.addEventListener("click", function () {
             clearRouteAll(false);
@@ -568,17 +592,51 @@
             sceneType: "home"
         });
     }
-
     function assignRoutePoint(type) {
+        if (type === "start" && state.currentLocation) {
+            state.routeStartPoi = buildCurrentLocationPoi();
+            state.routeViaPois = state.routeViaPois.filter(function (poi) {
+                return poi.id !== state.routeStartPoi.id;
+            });
+            renderRouteSelection();
+            renderRouteEndpointMarkers();
+            setRouteFeedback("Start point set to current location.");
+            return;
+        }
+
         if (!state.selectedPoi) {
-            setRouteFeedback("Please select a POI first.");
+            window.alert("\u8bf7\u5148\u9009\u62e9\u5730\u70b9");
             return;
         }
 
         if (type === "start") {
             state.routeStartPoi = state.selectedPoi;
-        } else {
+            state.routeViaPois = state.routeViaPois.filter(function (poi) {
+                return poi.id !== state.routeStartPoi.id;
+            });
+        } else if (type === "end") {
             state.routeEndPoi = state.selectedPoi;
+            state.routeViaPois = state.routeViaPois.filter(function (poi) {
+                return poi.id !== state.routeEndPoi.id;
+            });
+        } else if (type === "via") {
+            if (!state.routeStartPoi || !state.routeEndPoi) {
+                window.alert("\u8bf7\u5148\u9009\u62e9\u8d77\u70b9\u548c\u7ec8\u70b9");
+                return;
+            }
+            if (state.selectedPoi.id === state.routeStartPoi.id || state.selectedPoi.id === state.routeEndPoi.id) {
+                window.alert("\u9014\u7ecf\u70b9\u4e0d\u80fd\u4e0e\u8d77\u70b9\u6216\u7ec8\u70b9\u76f8\u540c");
+                return;
+            }
+            if (state.routeViaPois.some(function (poi) { return poi.id === state.selectedPoi.id; })) {
+                window.alert("\u8be5\u5730\u70b9\u5df2\u6dfb\u52a0\u4e3a\u9014\u7ecf\u70b9");
+                return;
+            }
+            if (state.routeViaPois.length >= 3) {
+                window.alert("\u9014\u7ecf\u70b9\u8fc7\u591a");
+                return;
+            }
+            state.routeViaPois.push(state.selectedPoi);
         }
 
         renderRouteSelection();
@@ -591,6 +649,7 @@
             setRouteFeedback("Please set both start and destination.");
             return;
         }
+        state.routeMode = normalizeRouteMode(elements.routeMode ? elements.routeMode.value : state.routeMode);
         clearRouteDrawing();
 
         const startPosition = getPoiPosition(state.routeStartPoi);
@@ -598,6 +657,16 @@
         if (!startPosition || !endPosition) {
             setRouteFeedback("Start or destination has invalid coordinates.");
             return;
+        }
+        const viaPositions = [];
+        for (let i = 0; i < state.routeViaPois.length; i += 1) {
+            const viaPoi = state.routeViaPois[i];
+            const viaPosition = getPoiPosition(viaPoi);
+            if (!viaPosition) {
+                setRouteFeedback("Waypoint has invalid coordinates.");
+                return;
+            }
+            viaPositions.push(viaPosition);
         }
 
         if (state.routeStartPoi.id === state.routeEndPoi.id) {
@@ -610,22 +679,29 @@
         params.set("originLat", String(startPosition[1]));
         params.set("destinationLng", String(endPosition[0]));
         params.set("destinationLat", String(endPosition[1]));
+        viaPositions.forEach(function (viaPosition) {
+            params.append("viaLng", String(viaPosition[0]));
+            params.append("viaLat", String(viaPosition[1]));
+        });
+        const routeEndpoint = state.routeMode === "cycling"
+            ? "/api/v1/routes/cycling"
+            : "/api/v1/routes/walking";
 
         try {
-            setRouteFeedback("Planning walking route...");
-            const routeData = await fetchApi("/api/v1/routes/walking?" + params.toString());
+            setRouteFeedback("Planning " + state.routeMode + " route...");
+            const routeData = await fetchApi(routeEndpoint + "?" + params.toString());
             const polyline = normalizeRoutePolyline(routeData.routePolyline);
             if (polyline.length === 0) {
-                setRouteFeedback("No route polyline returned.");
+                setRouteFeedback("No " + state.routeMode + " route polyline returned.");
                 refreshSuggestionsAfterRouteClear();
                 return;
             }
 
-            drawRoutePolyline(polyline);
+            drawRoutePolyline(polyline, state.routeMode);
             renderRouteEndpointMarkers();
             renderRouteSummary(routeData);
             fitRouteView();
-            setRouteFeedback("Walking route planned.");
+            setRouteFeedback(capitalizeRouteMode(state.routeMode) + " route planned.");
             loadContextSuggestions({
                 sceneType: "route_planning",
                 poiId: state.routeEndPoi ? state.routeEndPoi.id : null,
@@ -633,7 +709,7 @@
                 routeDuration: routeData.duration
             });
         } catch (error) {
-            setRouteFeedback(error.message || "Walking route planning failed.");
+            setRouteFeedback(error.message || (capitalizeRouteMode(state.routeMode) + " route planning failed."));
             refreshSuggestionsAfterRouteClear();
         }
     }
@@ -644,6 +720,7 @@
         clearRouteEndpointMarkers();
         state.routeStartPoi = null;
         state.routeEndPoi = null;
+        state.routeViaPois = [];
         renderRouteSelection();
         if (!isSilent) {
             setRouteFeedback("Route cleared.");
@@ -661,14 +738,16 @@
         state.routeLine = null;
     }
 
-    function drawRoutePolyline(path) {
+    function drawRoutePolyline(path, mode) {
         if (!state.mapReady || !state.map) {
             return;
         }
+        const normalizedMode = normalizeRouteMode(mode);
+        const strokeColor = normalizedMode === "cycling" ? "#0f9d58" : "#1a73e8";
 
         state.routeLine = new AMap.Polyline({
             path: path,
-            strokeColor: "#1a73e8",
+            strokeColor: strokeColor,
             strokeWeight: 6,
             lineJoin: "round",
             lineCap: "round"
@@ -694,6 +773,17 @@
             state.routeEndMarker = createEndpointMarker(endPos, "end", state.routeEndPoi.name || "Destination");
             state.map.add(state.routeEndMarker);
         }
+
+        state.routeViaMarkers = [];
+        state.routeViaPois.forEach(function (viaPoi, index) {
+            const viaPos = getPoiPosition(viaPoi);
+            if (!viaPos) {
+                return;
+            }
+            const marker = createEndpointMarker(viaPos, "via", viaPoi.name || "Waypoint", "V" + (index + 1));
+            state.routeViaMarkers.push(marker);
+            state.map.add(marker);
+        });
     }
 
     function clearRouteEndpointMarkers() {
@@ -708,13 +798,20 @@
             state.map.remove(state.routeEndMarker);
             state.routeEndMarker = null;
         }
+        if (Array.isArray(state.routeViaMarkers) && state.routeViaMarkers.length > 0) {
+            state.routeViaMarkers.forEach(function (marker) {
+                state.map.remove(marker);
+            });
+        }
+        state.routeViaMarkers = [];
     }
 
-    function createEndpointMarker(position, type, title) {
+    function createEndpointMarker(position, type, title, customLabel) {
+        const label = customLabel || (type === "start" ? "S" : type === "end" ? "E" : "V");
         return new AMap.Marker({
             position: position,
             title: title,
-            content: "<div class='endpoint-marker " + type + "'>" + (type === "start" ? "S" : "E") + "</div>",
+            content: "<div class='endpoint-marker " + type + "'>" + label + "</div>",
             offset: new AMap.Pixel(-12, -12)
         });
     }
@@ -722,6 +819,15 @@
     function renderRouteSelection() {
         elements.routeStartName.textContent = state.routeStartPoi ? state.routeStartPoi.name : "Not selected";
         elements.routeEndName.textContent = state.routeEndPoi ? state.routeEndPoi.name : "Not selected";
+        if (!state.routeViaPois || state.routeViaPois.length === 0) {
+            elements.routeViaName.textContent = "Not selected";
+            return;
+        }
+        elements.routeViaName.textContent = state.routeViaPois
+            .map(function (poi, index) {
+                return "V" + (index + 1) + ": " + poi.name;
+            })
+            .join(" | ");
     }
 
     function renderRouteSummary(routeData) {
@@ -761,6 +867,11 @@
         }
         if (state.routeEndMarker) {
             overlays.push(state.routeEndMarker);
+        }
+        if (Array.isArray(state.routeViaMarkers) && state.routeViaMarkers.length > 0) {
+            state.routeViaMarkers.forEach(function (marker) {
+                overlays.push(marker);
+            });
         }
 
         if (overlays.length > 0) {
@@ -963,6 +1074,195 @@
 
     function setRouteFeedback(message) {
         elements.routeFeedback.textContent = message;
+    }
+
+    function locateCurrentPosition() {
+        if (!state.mapReady || !state.map) {
+            window.alert("Map is not ready yet.");
+            return;
+        }
+        setFeedback("Locating current position...");
+
+        locateCurrentPositionByAmap()
+            .catch(function () {
+                // Fallback: browser geolocation + coordinate conversion.
+                return locateCurrentPositionByBrowser();
+            })
+            .then(function (position) {
+                renderCurrentLocationMarker(position);
+                state.currentLocation = {
+                    id: "__current_location__",
+                    name: "Current Position",
+                    longitude: position[0],
+                    latitude: position[1],
+                    type: "current_location",
+                    description: "Browser/device current location"
+                };
+                state.map.setCenter(position);
+                state.map.setZoom(17);
+                setFeedback("Current position located.");
+            })
+            .catch(function (error) {
+                const message = error && error.message
+                    ? error.message
+                    : "Failed to locate current position.";
+                window.alert(message);
+                setFeedback("Current position unavailable.");
+            });
+    }
+
+    function buildCurrentLocationPoi() {
+        if (!state.currentLocation) {
+            return null;
+        }
+        return {
+            id: state.currentLocation.id,
+            name: state.currentLocation.name,
+            type: state.currentLocation.type,
+            longitude: state.currentLocation.longitude,
+            latitude: state.currentLocation.latitude,
+            description: state.currentLocation.description,
+            openingHours: "-",
+            enabled: true
+        };
+    }
+
+    function renderCurrentLocationMarker(position) {
+        if (!state.map) {
+            return;
+        }
+        if (state.currentLocationMarker) {
+            state.map.remove(state.currentLocationMarker);
+            state.currentLocationMarker = null;
+        }
+
+        state.currentLocationMarker = new AMap.Marker({
+            position: position,
+            title: "Current Position",
+            content: "<div class='current-location-marker'></div>",
+            offset: new AMap.Pixel(-8, -8)
+        });
+        state.map.add(state.currentLocationMarker);
+    }
+
+    function locateCurrentPositionByAmap() {
+        return new Promise(function (resolve, reject) {
+            if (!window.AMap || typeof window.AMap.plugin !== "function") {
+                reject(new Error("AMap geolocation unavailable."));
+                return;
+            }
+
+            window.AMap.plugin("AMap.Geolocation", function () {
+                if (!window.AMap || typeof window.AMap.Geolocation !== "function") {
+                    reject(new Error("AMap geolocation plugin unavailable."));
+                    return;
+                }
+
+                const geolocation = new window.AMap.Geolocation({
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    convert: true,
+                    showMarker: false,
+                    showCircle: false,
+                    panToLocation: false,
+                    zoomToAccuracy: false
+                });
+
+                geolocation.getCurrentPosition(function (status, result) {
+                    if (status === "complete" && result && result.position) {
+                        const lng = Number(result.position.lng);
+                        const lat = Number(result.position.lat);
+                        if (Number.isFinite(lng) && Number.isFinite(lat)) {
+                            resolve([lng, lat]);
+                            return;
+                        }
+                    }
+                    const message = result && (result.message || result.info)
+                        ? String(result.message || result.info)
+                        : "AMap geolocation failed.";
+                    reject(new Error(message));
+                });
+            });
+        });
+    }
+
+    function locateCurrentPositionByBrowser() {
+        return new Promise(function (resolve, reject) {
+            if (!navigator.geolocation) {
+                reject(new Error("Geolocation is not supported by this browser."));
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(function (position) {
+                const lng = Number(position.coords.longitude);
+                const lat = Number(position.coords.latitude);
+                if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+                    reject(new Error("Failed to parse current location coordinates."));
+                    return;
+                }
+
+                convertGpsToAmap(lng, lat)
+                    .then(resolve)
+                    .catch(function () {
+                        resolve([lng, lat]);
+                    });
+            }, function (error) {
+                reject(new Error(buildLocationErrorMessage(error)));
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        });
+    }
+
+    function convertGpsToAmap(lng, lat) {
+        return new Promise(function (resolve, reject) {
+            if (!window.AMap || typeof window.AMap.convertFrom !== "function") {
+                reject(new Error("Coordinate conversion unavailable."));
+                return;
+            }
+            window.AMap.convertFrom([lng, lat], "gps", function (status, result) {
+                if (status === "complete"
+                    && result
+                    && Array.isArray(result.locations)
+                    && result.locations.length > 0) {
+                    const point = result.locations[0];
+                    const convertedLng = Number(point.lng);
+                    const convertedLat = Number(point.lat);
+                    if (Number.isFinite(convertedLng) && Number.isFinite(convertedLat)) {
+                        resolve([convertedLng, convertedLat]);
+                        return;
+                    }
+                }
+                reject(new Error("Coordinate conversion failed."));
+            });
+        });
+    }
+
+    function buildLocationErrorMessage(error) {
+        if (!error || typeof error.code !== "number") {
+            return "Failed to locate current position.";
+        }
+        if (error.code === 1) {
+            return "Location permission denied.";
+        }
+        if (error.code === 2) {
+            return "Location unavailable.";
+        }
+        if (error.code === 3) {
+            return "Location request timed out.";
+        }
+        return "Failed to locate current position.";
+    }
+
+    function normalizeRouteMode(mode) {
+        return mode === "cycling" ? "cycling" : "walking";
+    }
+
+    function capitalizeRouteMode(mode) {
+        const normalized = normalizeRouteMode(mode);
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1);
     }
 
     function escapeHtml(value) {

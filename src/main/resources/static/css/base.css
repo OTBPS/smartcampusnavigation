@@ -457,6 +457,21 @@ body {
     font-weight: 600;
 }
 
+.route-mode-select {
+    width: 100%;
+    height: 34px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 0 10px;
+    font-size: 14px;
+    outline: none;
+}
+
+.route-mode-select:focus {
+    border-color: var(--primary);
+}
+
 .route-actions {
     display: flex;
     gap: 8px;
@@ -526,6 +541,19 @@ body {
 
 .endpoint-marker.end {
     background: #dc2626;
+}
+
+.endpoint-marker.via {
+    background: #f59e0b;
+}
+
+.current-location-marker {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: #1a73e8;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 6px rgba(26, 115, 232, 0.2);
 }
 
 .map-panel {

@@ -5,4 +5,6 @@ import com.nuist.pengbo.smartcampusnavigation.vo.route.WalkingRouteVO;
 
 public interface RouteService {
     WalkingRouteVO planWalkingRoute(WalkingRouteQueryDTO queryDTO);
+
+    WalkingRouteVO planCyclingRoute(WalkingRouteQueryDTO queryDTO);
 }
