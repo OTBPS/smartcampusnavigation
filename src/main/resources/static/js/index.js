@@ -41,7 +41,8 @@
         historyRouteMode: false,
         pendingMapClickPoi: null,
         weatherRefreshTimer: null,
-        weatherLoading: false
+        weatherLoading: false,
+        weatherExpanded: false
     };
 
     const elements = {
@@ -83,6 +84,10 @@
         routeDistance: document.getElementById("route-distance"),
         routeDuration: document.getElementById("route-duration"),
         routeSteps: document.getElementById("route-steps"),
+        weatherCard: document.getElementById("weather-card"),
+        weatherToggleBtn: document.getElementById("weather-toggle-btn"),
+        weatherSummaryLine: document.getElementById("weather-summary-line"),
+        weatherDetailContent: document.getElementById("weather-detail-content"),
         weatherStatus: document.getElementById("weather-status"),
         weatherText: document.getElementById("weather-text"),
         weatherTemp: document.getElementById("weather-temp"),
@@ -110,6 +115,9 @@
         historyResetBtn: document.getElementById("history-reset-btn"),
         historyList: document.getElementById("history-list"),
         historyEmpty: document.getElementById("history-empty"),
+        historyCleanModal: document.getElementById("history-clean-modal"),
+        historyCleanConfirmBtn: document.getElementById("history-clean-confirm-btn"),
+        historyCleanCancelBtn: document.getElementById("history-clean-cancel-btn"),
         suggestionTitle: document.getElementById("suggestion-title"),
         suggestionList: document.getElementById("suggestion-list"),
         suggestionStatus: document.getElementById("suggestion-status"),
@@ -123,6 +131,7 @@
         setActiveCategoryButton("");
         await loadPoiTypes();
         renderRouteSelection();
+        setWeatherExpanded(false);
         loadWeatherSummary();
         startWeatherAutoRefresh();
         updateClassPeakStatus();
@@ -183,6 +192,12 @@
             locateCurrentPosition();
         });
 
+        if (elements.weatherToggleBtn) {
+            elements.weatherToggleBtn.addEventListener("click", function () {
+                toggleWeatherExpanded();
+            });
+        }
+
         elements.planRouteBtn.addEventListener("click", function () {
             planWalkingRoute();
         });
@@ -232,10 +247,31 @@
 
         if (elements.historyResetBtn) {
             elements.historyResetBtn.addEventListener("click", function () {
-                if (elements.historySearchInput) {
-                    elements.historySearchInput.value = "";
+                openHistoryCleanModal();
+            });
+        }
+
+        if (elements.historyCleanCancelBtn) {
+            elements.historyCleanCancelBtn.addEventListener("click", function () {
+                closeHistoryCleanModal();
+            });
+        }
+
+        if (elements.historyCleanConfirmBtn) {
+            elements.historyCleanConfirmBtn.addEventListener("click", function () {
+                handleHistoryCleanConfirm();
+            });
+        }
+
+        if (elements.historyCleanModal) {
+            elements.historyCleanModal.addEventListener("click", function (event) {
+                const isBusy = elements.historyCleanConfirmBtn && elements.historyCleanConfirmBtn.disabled;
+                if (isBusy) {
+                    return;
                 }
-                runHistorySearch();
+                if (event.target === elements.historyCleanModal) {
+                    closeHistoryCleanModal();
+                }
             });
         }
 
@@ -358,6 +394,10 @@
         document.addEventListener("keydown", function (event) {
             if (event.key === "Escape") {
                 hideMapRoutePointMenu(true);
+                const isBusy = elements.historyCleanConfirmBtn && elements.historyCleanConfirmBtn.disabled;
+                if (!isBusy) {
+                    closeHistoryCleanModal();
+                }
             }
         });
     }
@@ -839,6 +879,72 @@
         elements.historyStatus.textContent = message || "History ready.";
     }
 
+    function openHistoryCleanModal() {
+        if (!elements.historyCleanModal) {
+            return;
+        }
+        setHistoryCleanModalBusy(false);
+        elements.historyCleanModal.hidden = false;
+    }
+
+    function closeHistoryCleanModal() {
+        if (!elements.historyCleanModal) {
+            return;
+        }
+        elements.historyCleanModal.hidden = true;
+        setHistoryCleanModalBusy(false);
+    }
+
+    function setHistoryCleanModalBusy(isBusy) {
+        const busy = !!isBusy;
+        if (elements.historyCleanConfirmBtn) {
+            elements.historyCleanConfirmBtn.disabled = busy;
+            elements.historyCleanConfirmBtn.textContent = busy ? "Clearing..." : "Yes";
+        }
+        if (elements.historyCleanCancelBtn) {
+            elements.historyCleanCancelBtn.disabled = busy;
+        }
+    }
+
+    function handleHistoryCleanConfirm() {
+        const isBusy = elements.historyCleanConfirmBtn && elements.historyCleanConfirmBtn.disabled;
+        if (isBusy) {
+            return;
+        }
+        clearAllRouteHistories();
+    }
+
+    async function clearAllRouteHistories() {
+        setHistoryCleanModalBusy(true);
+        setHistoryStatus("Clearing history...");
+        try {
+            const response = await fetchApi("/api/v1/route-histories", {
+                method: "DELETE"
+            });
+            closeHistoryCleanModal();
+            if (elements.historySearchInput) {
+                elements.historySearchInput.value = "";
+            }
+            state.historyKeyword = "";
+            state.routeHistories = [];
+            renderRouteHistoryList([], 0);
+            await loadRouteHistoryList("");
+            const cleared = response && Number.isFinite(Number(response.cleared))
+                ? Number(response.cleared)
+                : null;
+            if (cleared === null) {
+                setHistoryStatus("History cleared.");
+            } else {
+                setHistoryStatus("History cleared. " + String(cleared) + " record(s) removed.");
+            }
+        } catch (error) {
+            closeHistoryCleanModal();
+            const detail = normalizeErrorMessage(error, "Failed to clear history records.");
+            setHistoryStatus(detail);
+            window.alert("Failed to clear history: " + detail);
+        }
+    }
+
     function buildHistoryPoi(record, type) {
         if (!record) {
             return null;
@@ -981,6 +1087,7 @@
             return;
         }
         state.weatherLoading = true;
+        renderWeatherSummaryLine("Loading weather...");
         elements.weatherStatus.textContent = "Loading weather...";
         try {
             const weather = await fetchApi("/api/v1/weather/current");
@@ -1087,6 +1194,7 @@
         if (elements.mapWeatherWind) {
             elements.mapWeatherWind.textContent = "Wind: " + (windText || "-");
         }
+        renderWeatherSummaryLine(weatherText + " · " + temp);
     }
 
     function renderWeatherFallback(message) {
@@ -1106,6 +1214,33 @@
         if (elements.mapWeatherWind) {
             elements.mapWeatherWind.textContent = "Wind: -";
         }
+        renderWeatherSummaryLine("Weather unavailable");
+    }
+
+    function toggleWeatherExpanded() {
+        setWeatherExpanded(!state.weatherExpanded);
+    }
+
+    function setWeatherExpanded(expanded) {
+        const shouldExpand = expanded === true;
+        state.weatherExpanded = shouldExpand;
+        if (elements.weatherDetailContent) {
+            elements.weatherDetailContent.hidden = !shouldExpand;
+        }
+        if (elements.weatherToggleBtn) {
+            elements.weatherToggleBtn.setAttribute("aria-expanded", shouldExpand ? "true" : "false");
+            elements.weatherToggleBtn.classList.toggle("expanded", shouldExpand);
+        }
+        if (elements.weatherCard) {
+            elements.weatherCard.classList.toggle("expanded", shouldExpand);
+        }
+    }
+
+    function renderWeatherSummaryLine(text) {
+        if (!elements.weatherSummaryLine) {
+            return;
+        }
+        elements.weatherSummaryLine.textContent = normalizeText(text, "Weather unavailable");
     }
 
     async function loadContextSuggestions(context) {
@@ -1948,7 +2083,8 @@
             });
 
             if (!response.ok) {
-                throw new Error("Request failed with status " + response.status);
+                const errorMessage = await parseErrorResponse(response);
+                throw new Error(errorMessage);
             }
 
             const responseBody = await response.json();
@@ -1966,6 +2102,31 @@
             throw error;
         } finally {
             window.clearTimeout(timeoutId);
+        }
+    }
+
+    async function parseErrorResponse(response) {
+        const fallback = "Request failed with status " + String(response.status);
+        if (!response) {
+            return fallback;
+        }
+
+        try {
+            const contentType = normalizeText(response.headers.get("content-type"), "").toLowerCase();
+            if (contentType.includes("application/json")) {
+                const body = await response.json();
+                const message = body && typeof body.message === "string" ? body.message.trim() : "";
+                if (message) {
+                    return message;
+                }
+                return fallback;
+            }
+
+            const text = await response.text();
+            const message = typeof text === "string" ? text.trim() : "";
+            return message || fallback;
+        } catch (error) {
+            return fallback;
         }
     }
 

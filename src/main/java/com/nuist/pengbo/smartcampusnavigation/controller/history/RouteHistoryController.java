@@ -55,5 +55,10 @@ public class RouteHistoryController {
         routeHistoryService.delete(id);
         return ApiResponse.success("Route history deleted", null);
     }
-}
 
+    @DeleteMapping
+    public ApiResponse<Map<String, Integer>> clearAll() {
+        int cleared = routeHistoryService.clearAll();
+        return ApiResponse.success("Route history cleared", Map.of("cleared", cleared));
+    }
+}

@@ -17,5 +17,6 @@ public interface RouteHistoryService {
     RouteHistoryVO updateTitle(Long id, RouteHistoryUpdateRequest request);
 
     void delete(Long id);
-}
 
+    int clearAll();
+}

@@ -128,37 +128,6 @@
                 </div>
             </section>
 
-<section class="card weather-card">
-                <h2>Current Weather</h2>
-                <p id="weather-status" class="helper-text">Loading weather...</p>
-                <div class="weather-grid">
-                    <div class="weather-item">
-                        <span class="detail-label">Weather</span>
-                        <span id="weather-text" class="detail-value">-</span>
-                    </div>
-                    <div class="weather-item">
-                        <span class="detail-label">Temperature</span>
-                        <span id="weather-temp" class="detail-value">-</span>
-                    </div>
-                    <div class="weather-item">
-                        <span class="detail-label">Feels Like</span>
-                        <span id="weather-feels-like" class="detail-value">-</span>
-                    </div>
-                    <div class="weather-item">
-                        <span class="detail-label">Humidity</span>
-                        <span id="weather-humidity" class="detail-value">-</span>
-                    </div>
-                    <div class="weather-item">
-                        <span class="detail-label">Wind</span>
-                        <span id="weather-wind" class="detail-value">-</span>
-                    </div>
-                    <div class="weather-item">
-                        <span class="detail-label">Updated</span>
-                        <span id="weather-updated" class="detail-value">-</span>
-                    </div>
-                </div>
-            </section>
-
 <section class="card history-entry-card">
                 <div class="card-head">
                     <h2>History Records</h2>
@@ -170,6 +139,42 @@
                 <p id="history-status" class="helper-text">History ready.</p>
             </section>
 
+<section id="weather-card" class="card weather-card weather-collapsible-card">
+                <button type="button" id="weather-toggle-btn" class="weather-toggle-btn" aria-expanded="false" aria-controls="weather-detail-content">
+                    <span class="weather-toggle-title">Current Weather</span>
+                    <span id="weather-summary-line" class="weather-summary-line">Loading weather...</span>
+                </button>
+                <div id="weather-detail-content" class="weather-detail-content" hidden>
+                    <p id="weather-status" class="helper-text">Loading weather...</p>
+                    <div class="weather-grid">
+                        <div class="weather-item">
+                            <span class="detail-label">Weather</span>
+                            <span id="weather-text" class="detail-value">-</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="detail-label">Temperature</span>
+                            <span id="weather-temp" class="detail-value">-</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="detail-label">Feels Like</span>
+                            <span id="weather-feels-like" class="detail-value">-</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="detail-label">Humidity</span>
+                            <span id="weather-humidity" class="detail-value">-</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="detail-label">Wind</span>
+                            <span id="weather-wind" class="detail-value">-</span>
+                        </div>
+                        <div class="weather-item">
+                            <span class="detail-label">Updated</span>
+                            <span id="weather-updated" class="detail-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
 <section id="history-panel" class="card history-panel" hidden>
                 <div class="card-head">
                     <h2>Navigation History</h2>
@@ -177,7 +182,7 @@
                 <div class="history-search-row">
                     <input id="history-search-input" type="text" placeholder="Search history by title or POI">
                     <button type="button" id="history-search-btn" class="btn-primary">Search</button>
-                    <button type="button" id="history-reset-btn" class="btn-secondary">Reset</button>
+                    <button type="button" id="history-reset-btn" class="btn-secondary">Clean</button>
                 </div>
                 <ul id="history-list" class="history-list"></ul>
                 <div id="history-empty" class="empty-state">No history records yet.</div>
@@ -212,6 +217,15 @@
             <div id="map-status" class="map-status hidden"></div>
         </section>
     </main>
+</div>
+<div id="history-clean-modal" class="confirm-modal" hidden>
+    <div class="confirm-modal-card" role="dialog" aria-modal="true" aria-labelledby="history-clean-title">
+        <h3 id="history-clean-title" class="confirm-modal-title">Are you sure to clear the history records?</h3>
+        <div class="confirm-modal-actions">
+            <button type="button" id="history-clean-confirm-btn" class="btn-primary">Yes</button>
+            <button type="button" id="history-clean-cancel-btn" class="btn-secondary">No</button>
+        </div>
+    </div>
 </div>
 <script th:inline="javascript">
     window.APP_CONFIG = {

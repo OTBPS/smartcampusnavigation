@@ -114,6 +114,11 @@ public class RouteHistoryServiceImpl implements RouteHistoryService {
         }
     }
 
+    @Override
+    public int clearAll() {
+        return routeHistoryMapper.deleteAll();
+    }
+
     private RouteHistoryVO toVO(RouteHistory entity) {
         RouteHistoryVO vo = new RouteHistoryVO();
         vo.setId(entity.getId());

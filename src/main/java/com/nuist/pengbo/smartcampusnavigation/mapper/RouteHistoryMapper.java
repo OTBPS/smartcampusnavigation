@@ -30,4 +30,6 @@ public interface RouteHistoryMapper {
     int deleteById(@Param("id") Long id);
 
     int deleteOverflow(@Param("limit") int limit);
+
+    int deleteAll();
 }

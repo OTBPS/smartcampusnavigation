@@ -92,6 +92,10 @@
         DELETE FROM route_history WHERE id = #{id}
     </delete>
 
+    <delete id="deleteAll">
+        DELETE FROM route_history
+    </delete>
+
     <delete id="deleteOverflow">
         DELETE FROM route_history
         WHERE id NOT IN (
