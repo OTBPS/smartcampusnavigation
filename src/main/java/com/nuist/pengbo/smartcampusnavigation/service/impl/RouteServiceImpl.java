@@ -64,15 +64,30 @@ public class RouteServiceImpl implements RouteService {
 
     private WalkingRouteVO planRouteWithOptionalVia(WalkingRouteQueryDTO queryDTO, RouteMode routeMode) {
         validateQuery(queryDTO);
+        boolean hasVia = hasWaypoint(queryDTO);
+
+        if (!hasVia) {
+            return planSingleSegment(
+                    queryDTO.getOriginLng(),
+                    queryDTO.getOriginLat(),
+                    queryDTO.getDestinationLng(),
+                    queryDTO.getDestinationLat(),
+                    routeMode,
+                    true
+            );
+        }
+
         List<RoutePoint> routePoints = buildRoutePoints(queryDTO);
 
         List<WalkingRouteVO> segments = new ArrayList<>();
         for (int i = 0; i < routePoints.size() - 1; i++) {
             RoutePoint start = routePoints.get(i);
             RoutePoint end = routePoints.get(i + 1);
-            segments.add(planSingleSegment(start.lng, start.lat, end.lng, end.lat, routeMode));
+            segments.add(planSingleSegment(start.lng, start.lat, end.lng, end.lat, routeMode, false));
         }
-        return mergeRoutes(segments);
+        WalkingRouteVO merged = mergeRoutes(segments);
+        merged.setAlternatives(List.of(copyRouteForAlternative(merged)));
+        return merged;
     }
 
     private List<RoutePoint> buildRoutePoints(WalkingRouteQueryDTO queryDTO) {
@@ -93,7 +108,8 @@ public class RouteServiceImpl implements RouteService {
                                              BigDecimal originLat,
                                              BigDecimal destinationLng,
                                              BigDecimal destinationLat,
-                                             RouteMode routeMode) {
+                                             RouteMode routeMode,
+                                             boolean includeAlternatives) {
         String origin = formatCoordinatePair(originLng, originLat);
         String destination = formatCoordinatePair(destinationLng, destinationLat);
         String routeUrl = routeMode == RouteMode.CYCLING ? AMAP_CYCLING_URL : AMAP_WALKING_URL;
@@ -106,8 +122,8 @@ public class RouteServiceImpl implements RouteService {
                 throw new BusinessException(ResultCode.INTERNAL_ERROR, routeType + " route service returned empty response");
             }
             return routeMode == RouteMode.CYCLING
-                    ? convertCyclingResponse(responseText)
-                    : convertWalkingResponse(responseText);
+                    ? convertCyclingResponse(responseText, includeAlternatives)
+                    : convertWalkingResponse(responseText, includeAlternatives);
         } catch (BusinessException ex) {
             throw ex;
         } catch (RestClientException ex) {
@@ -131,7 +147,7 @@ public class RouteServiceImpl implements RouteService {
                 .toUriString();
     }
 
-    private WalkingRouteVO convertWalkingResponse(String responseText) throws Exception {
+    private WalkingRouteVO convertWalkingResponse(String responseText, boolean includeAlternatives) throws Exception {
         JsonNode root = objectMapper.readTree(responseText);
         String status = root.path("status").asText();
         if (!"1".equals(status)) {
@@ -148,10 +164,16 @@ public class RouteServiceImpl implements RouteService {
         }
 
         JsonNode firstPath = pathsNode.get(0);
-        return convertPathNode(firstPath);
+        WalkingRouteVO mainRoute = convertPathNode(firstPath);
+        if (includeAlternatives) {
+            mainRoute.setAlternatives(buildAlternatives(pathsNode, 3));
+        } else {
+            mainRoute.setAlternatives(List.of(copyRouteForAlternative(mainRoute)));
+        }
+        return mainRoute;
     }
 
-    private WalkingRouteVO convertCyclingResponse(String responseText) throws Exception {
+    private WalkingRouteVO convertCyclingResponse(String responseText, boolean includeAlternatives) throws Exception {
         JsonNode root = objectMapper.readTree(responseText);
         JsonNode errCodeNode = root.path("errcode");
         int errCode = errCodeNode.isInt() ? errCodeNode.asInt() : parseIntSafely(errCodeNode.asText(), 0);
@@ -169,7 +191,13 @@ public class RouteServiceImpl implements RouteService {
         }
 
         JsonNode firstPath = pathsNode.get(0);
-        return convertPathNode(firstPath);
+        WalkingRouteVO mainRoute = convertPathNode(firstPath);
+        if (includeAlternatives) {
+            mainRoute.setAlternatives(buildAlternatives(pathsNode, 3));
+        } else {
+            mainRoute.setAlternatives(List.of(copyRouteForAlternative(mainRoute)));
+        }
+        return mainRoute;
     }
 
     private WalkingRouteVO convertPathNode(JsonNode firstPath) {
@@ -357,7 +385,38 @@ public class RouteServiceImpl implements RouteService {
         merged.setDuration(totalDuration);
         merged.setSteps(mergedSteps);
         merged.setRoutePolyline(mergedPolyline);
+        merged.setAlternatives(List.of(copyRouteForAlternative(merged)));
         return merged;
+    }
+
+    private boolean hasWaypoint(WalkingRouteQueryDTO queryDTO) {
+        return queryDTO != null
+                && !safeList(queryDTO.getViaLngList()).isEmpty()
+                && !safeList(queryDTO.getViaLatList()).isEmpty();
+    }
+
+    private List<WalkingRouteVO> buildAlternatives(JsonNode pathsNode, int maxCount) {
+        List<WalkingRouteVO> alternatives = new ArrayList<>();
+        if (pathsNode == null || !pathsNode.isArray()) {
+            return alternatives;
+        }
+        int count = Math.min(maxCount, pathsNode.size());
+        for (int i = 0; i < count; i++) {
+            WalkingRouteVO route = convertPathNode(pathsNode.get(i));
+            route.setAlternatives(null);
+            alternatives.add(route);
+        }
+        return alternatives;
+    }
+
+    private WalkingRouteVO copyRouteForAlternative(WalkingRouteVO source) {
+        WalkingRouteVO copy = new WalkingRouteVO();
+        copy.setDistance(source.getDistance());
+        copy.setDuration(source.getDuration());
+        copy.setSteps(source.getSteps());
+        copy.setRoutePolyline(source.getRoutePolyline());
+        copy.setAlternatives(null);
+        return copy;
     }
 
     private List<BigDecimal> safeList(List<BigDecimal> source) {

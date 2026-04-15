@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nuist.pengbo.smartcampusnavigation.mapper.RouteHistoryMapper">
+
+    <resultMap id="RouteHistoryResultMap" type="com.nuist.pengbo.smartcampusnavigation.entity.RouteHistory">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="mode" column="mode"/>
+        <result property="startName" column="start_name"/>
+        <result property="startLng" column="start_lng"/>
+        <result property="startLat" column="start_lat"/>
+        <result property="endName" column="end_name"/>
+        <result property="endLng" column="end_lng"/>
+        <result property="endLat" column="end_lat"/>
+        <result property="viaJson" column="via_json"/>
+        <result property="distance" column="distance"/>
+        <result property="duration" column="duration"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectRecentByKeyword" resultMap="RouteHistoryResultMap">
+        SELECT id, title, mode, start_name, start_lng, start_lat, end_name, end_lng, end_lat,
+               via_json, distance, duration, created_at, updated_at
+        FROM route_history
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    title LIKE CONCAT('%', #{keyword}, '%')
+                    OR start_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR end_name LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        ORDER BY updated_at DESC, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectByRouteSignature" resultMap="RouteHistoryResultMap">
+        SELECT id, title, mode, start_name, start_lng, start_lat, end_name, end_lng, end_lat,
+               via_json, distance, duration, created_at, updated_at
+        FROM route_history
+        WHERE start_lng = #{startLng}
+          AND start_lat = #{startLat}
+          AND end_lng = #{endLng}
+          AND end_lat = #{endLat}
+          AND COALESCE(via_json, '') = COALESCE(#{viaJson}, '')
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectById" resultMap="RouteHistoryResultMap">
+        SELECT id, title, mode, start_name, start_lng, start_lat, end_name, end_lng, end_lat,
+               via_json, distance, duration, created_at, updated_at
+        FROM route_history
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(1) FROM route_history
+    </select>
+
+    <insert id="insert" parameterType="com.nuist.pengbo.smartcampusnavigation.entity.RouteHistory"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO route_history (
+            title, mode, start_name, start_lng, start_lat,
+            end_name, end_lng, end_lat, via_json, distance, duration, created_at, updated_at
+        )
+        VALUES (
+            #{title}, #{mode}, #{startName}, #{startLng}, #{startLat},
+            #{endName}, #{endLng}, #{endLat}, #{viaJson}, #{distance}, #{duration}, NOW(), NOW()
+        )
+    </insert>
+
+    <update id="refreshRouteById">
+        UPDATE route_history
+        SET updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateTitleById">
+        UPDATE route_history
+        SET title = #{title},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM route_history WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteOverflow">
+        DELETE FROM route_history
+        WHERE id NOT IN (
+            SELECT id FROM (
+                SELECT id
+                FROM route_history
+                ORDER BY updated_at DESC, id DESC
+                LIMIT #{limit}
+            ) keep_ids
+        )
+    </delete>
+</mapper>

@@ -27,6 +27,12 @@
             <if test="query != null and query.type != null and query.type != ''">
                 AND type = #{query.type}
             </if>
+            <if test="query != null and (query.type == null or query.type == '') and query.typeList != null and query.typeList.size > 0">
+                AND type IN
+                <foreach collection="query.typeList" item="mappedType" open="(" separator="," close=")">
+                    #{mappedType}
+                </foreach>
+            </if>
             <if test="query != null and query.enabled != null">
                 AND enabled = #{query.enabled}
             </if>

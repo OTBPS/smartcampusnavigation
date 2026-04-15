@@ -16,7 +16,7 @@
     </header>
 
     <main class="main-layout">
-        <aside class="left-panel">
+        <aside id="left-panel" class="left-panel">
 <section class="card">
                 <h2>Search POIs</h2>
                 <form id="poi-search-form" class="search-form">
@@ -31,12 +31,13 @@
                     <div class="search-actions">
                         <button type="submit" class="btn-primary">Search</button>
                         <button type="button" id="reset-btn" class="btn-secondary">Reset</button>
+                        <button type="button" id="locate-current-btn" class="btn-secondary locate-current-btn">Locate Current Position</button>
                     </div>
                 </form>
                 <p id="search-feedback" class="helper-text">Ready.</p>
             </section>
 
-<section class="card results-card">
+<section id="results-card" class="card results-card card-hidden" hidden>
                 <div class="card-head">
                     <h2>Results</h2>
                     <span id="result-count" class="count-badge">0</span>
@@ -45,7 +46,7 @@
                 <div id="result-empty" class="empty-state">No POIs found. Try another keyword or type.</div>
             </section>
 
-<section class="card detail-card">
+<section id="detail-card" class="card detail-card card-hidden" hidden>
                 <h2>POI Details</h2>
                 <div id="detail-empty" class="empty-state">Select a POI from the list to view details.</div>
                 <div id="detail-content" class="detail-content hidden">
@@ -57,7 +58,6 @@
                         <button type="button" id="set-start-btn" class="btn-secondary">Set As Start</button>
                         <button type="button" id="set-end-btn" class="btn-secondary">Set As Destination</button>
                         <button type="button" id="set-via-btn" class="btn-secondary">Set As Waypoint</button>
-                        <button type="button" id="locate-current-btn" class="btn-secondary">Locate Current Position</button>
                     </div>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -72,7 +72,7 @@
                             <span class="detail-label">Description</span>
                             <span id="detail-description" class="detail-value"></span>
                         </div>
-                        <div class="detail-item detail-full">
+                        <div id="detail-coordinates-item" class="detail-item detail-full" hidden>
                             <span class="detail-label">Coordinates</span>
                             <span id="detail-coordinates" class="detail-value"></span>
                         </div>
@@ -80,7 +80,7 @@
                 </div>
             </section>
 
-<section class="card route-card">
+<section id="route-card" class="card route-card card-hidden" hidden>
                 <h2>Route Planning</h2>
                 <div class="route-selection">
                     <div class="route-point">
@@ -92,15 +92,15 @@
                     </div>
                     <div class="route-point">
                         <span class="route-point-label">Start</span>
-                        <span id="route-start-name" class="route-point-value">Not selected</span>
+                        <input id="route-start-name" class="route-point-input" type="text" value="Not selected" readonly>
                     </div>
+                    <div class="route-waypoint-add-wrap">
+                        <button type="button" id="add-waypoint-btn" class="btn-secondary route-waypoint-add-btn">+ Add Waypoint</button>
+                    </div>
+                    <div id="route-waypoint-list" class="route-waypoint-list"></div>
                     <div class="route-point">
                         <span class="route-point-label">Destination</span>
-                        <span id="route-end-name" class="route-point-value">Not selected</span>
-                    </div>
-                    <div class="route-point">
-                        <span class="route-point-label">Waypoint</span>
-                        <span id="route-via-name" class="route-point-value">Not selected</span>
+                        <input id="route-end-name" class="route-point-input" type="text" value="Not selected" readonly>
                     </div>
                 </div>
                 <div class="route-actions">
@@ -108,6 +108,10 @@
                     <button type="button" id="clear-route-btn" class="btn-secondary">Clear Route</button>
                 </div>
                 <p id="route-feedback" class="helper-text">Select start and destination POIs first.</p>
+                <div id="route-alternative-wrap" class="route-alternative-wrap hidden">
+                    <span class="route-summary-label">Route Options</span>
+                    <div id="route-alternative-list" class="route-alternative-list"></div>
+                </div>
                 <div id="route-summary" class="route-summary hidden">
                     <div class="route-summary-item">
                         <span class="route-summary-label">Distance</span>
@@ -155,6 +159,30 @@
                 </div>
             </section>
 
+<section class="card history-entry-card">
+                <div class="card-head">
+                    <h2>History Records</h2>
+                    <span id="history-count" class="count-badge">0</span>
+                </div>
+                <div class="history-entry-actions">
+                    <button type="button" id="history-toggle-btn" class="btn-secondary">Open History Menu</button>
+                </div>
+                <p id="history-status" class="helper-text">History ready.</p>
+            </section>
+
+<section id="history-panel" class="card history-panel" hidden>
+                <div class="card-head">
+                    <h2>Navigation History</h2>
+                </div>
+                <div class="history-search-row">
+                    <input id="history-search-input" type="text" placeholder="Search history by title or POI">
+                    <button type="button" id="history-search-btn" class="btn-primary">Search</button>
+                    <button type="button" id="history-reset-btn" class="btn-secondary">Reset</button>
+                </div>
+                <ul id="history-list" class="history-list"></ul>
+                <div id="history-empty" class="empty-state">No history records yet.</div>
+            </section>
+
 <section class="card suggestion-card">
                 <h2 id="suggestion-title">Route Suggestions</h2>
                 <ul id="suggestion-list" class="suggestion-list"></ul>
@@ -164,6 +192,23 @@
 
         <section class="map-panel">
             <div id="map-container" class="map-container"></div>
+            <div id="map-weather-mini" class="map-weather-mini">
+                <span id="map-weather-text" class="map-weather-mini-item">Weather: -</span>
+                <span id="map-weather-temp" class="map-weather-mini-item">Temp: -</span>
+                <span id="map-weather-wind" class="map-weather-mini-item">Wind: -</span>
+            </div>
+            <div id="map-route-point-menu" class="map-route-point-menu" hidden>
+                <button type="button" id="map-menu-set-start" class="map-route-point-menu-btn">Set as Start</button>
+                <button type="button" id="map-menu-set-end" class="map-route-point-menu-btn">Set as End</button>
+                <button type="button" id="map-menu-set-via" class="map-route-point-menu-btn">Set as Waypoint</button>
+            </div>
+            <div id="map-category-quick-panel" class="map-category-quick-panel">
+                <button type="button" class="map-category-btn" data-category="administrative">Administrative</button>
+                <button type="button" class="map-category-btn" data-category="academic">Academic</button>
+                <button type="button" class="map-category-btn" data-category="dining">Dining</button>
+                <button type="button" class="map-category-btn" data-category="sports">Sports</button>
+                <button type="button" class="map-category-btn" data-category="convenience">Convenience</button>
+            </div>
             <div id="map-status" class="map-status hidden"></div>
         </section>
     </main>

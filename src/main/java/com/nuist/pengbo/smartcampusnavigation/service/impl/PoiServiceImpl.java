@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.List;
@@ -26,41 +28,90 @@ public class PoiServiceImpl implements PoiService {
             Pattern.compile("^([01]\\d|2[0-4]):[0-5]\\d-([01]\\d|2[0-4]):[0-5]\\d$");
     private static final Set<String> SUPPORTED_TYPES = Set.of(
             "activity_center",
+            "administrative_office",
+            "academy_building",
+            "atm",
             "auditorium",
+            "bank",
+            "basketball_court",
+            "bathhouse",
             "campus_poi",
             "canteen",
+            "cafe",
             "college",
+            "college_office",
+            "convenience_store",
+            "dorm_service",
+            "express_station",
+            "football_field",
             "gate",
             "gymnasium",
             "hospital",
+            "laboratory_building",
+            "laundry",
             "library",
+            "medical_service",
+            "parking",
+            "playground",
+            "print_shop",
             "research_institute",
             "residential_area",
+            "restaurant",
             "service_center",
             "sports",
             "stadium",
-            "teaching_building"
+            "sports_facility",
+            "supermarket",
+            "teaching_building",
+            "telecom_hall",
+            "toilet",
+            "bus_stop"
     );
     private static final Map<String, String> TYPE_ALIASES = Map.of(
-            "dining_hall", "canteen",
-            "playground", "sports"
+            "dining_hall", "canteen"
+    );
+    private static final Map<String, List<String>> CATEGORY_TYPE_MAPPING = Map.of(
+            "administrative", List.of("administrative_office", "college_office", "service_center", "activity_center"),
+            "academic", List.of("teaching_building", "laboratory_building", "library", "academy_building", "college"),
+            "dining", List.of("canteen", "restaurant", "cafe"),
+            "sports", List.of("gymnasium", "stadium", "playground", "basketball_court", "football_field", "sports_facility", "sports"),
+            "convenience", List.of(
+                    "bank", "atm", "telecom_hall", "supermarket", "convenience_store", "print_shop",
+                    "express_station", "bus_stop", "parking", "dorm_service", "medical_service", "bathhouse",
+                    "laundry", "toilet", "hospital", "residential_area", "campus_poi"
+            )
     );
     private static final Map<String, String> DEFAULT_OPENING_HOURS = Map.ofEntries(
             Map.entry("canteen", "06:30-23:00"),
+            Map.entry("restaurant", "09:00-21:00"),
+            Map.entry("cafe", "09:00-22:00"),
             Map.entry("library", "08:00-22:00"),
-            Map.entry("sports", "06:00-22:00"),
             Map.entry("stadium", "06:00-22:00"),
             Map.entry("gymnasium", "06:30-22:00"),
+            Map.entry("sports_facility", "06:00-22:00"),
+            Map.entry("basketball_court", "06:00-22:00"),
+            Map.entry("football_field", "06:00-22:00"),
+            Map.entry("playground", "06:00-22:00"),
+            Map.entry("administrative_office", "08:00-17:30"),
+            Map.entry("college_office", "08:00-17:30"),
             Map.entry("service_center", "08:00-17:30"),
-            Map.entry("college", "08:00-22:00"),
             Map.entry("teaching_building", "08:00-22:00"),
-            Map.entry("research_institute", "08:00-18:00"),
-            Map.entry("residential_area", "00:00-24:00"),
-            Map.entry("campus_poi", "08:00-20:00"),
-            Map.entry("activity_center", "08:00-22:00"),
-            Map.entry("auditorium", "08:00-21:00"),
-            Map.entry("gate", "00:00-24:00"),
-            Map.entry("hospital", "00:00-24:00")
+            Map.entry("laboratory_building", "08:00-20:00"),
+            Map.entry("academy_building", "08:00-22:00"),
+            Map.entry("bank", "09:00-17:00"),
+            Map.entry("atm", "00:00-24:00"),
+            Map.entry("telecom_hall", "09:00-18:00"),
+            Map.entry("supermarket", "08:00-22:30"),
+            Map.entry("convenience_store", "07:00-23:00"),
+            Map.entry("print_shop", "08:00-20:00"),
+            Map.entry("express_station", "09:00-20:00"),
+            Map.entry("bus_stop", "00:00-24:00"),
+            Map.entry("parking", "00:00-24:00"),
+            Map.entry("dorm_service", "00:00-24:00"),
+            Map.entry("medical_service", "00:00-24:00"),
+            Map.entry("bathhouse", "06:00-23:00"),
+            Map.entry("laundry", "00:00-24:00"),
+            Map.entry("toilet", "00:00-24:00")
     );
 
     private final PoiMapper poiMapper;
@@ -77,6 +128,7 @@ public class PoiServiceImpl implements PoiService {
 
         PoiQueryRequest dbQuery = new PoiQueryRequest();
         dbQuery.setType(normalizedQuery.getType());
+        dbQuery.setTypeList(normalizedQuery.getTypeList());
         dbQuery.setEnabled(normalizedQuery.getEnabled());
 
         String nameKeyword = normalizedQuery.getName();
@@ -184,6 +236,8 @@ public class PoiServiceImpl implements PoiService {
 
         query.setName(trimToNull(source.getName()));
         query.setType(normalizeQueryType(source.getType()));
+        query.setCategory(normalizeQueryCategory(source.getCategory()));
+        query.setTypeList(resolveTypeListByCategory(query.getType(), query.getCategory()));
         query.setEnabled(source.getEnabled());
         return query;
     }
@@ -226,6 +280,29 @@ public class PoiServiceImpl implements PoiService {
         }
         normalized = normalized.toLowerCase().replace(' ', '_');
         return TYPE_ALIASES.getOrDefault(normalized, normalized);
+    }
+
+    private String normalizeQueryCategory(String category) {
+        String normalized = trimToNull(category);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.toLowerCase().replace(' ', '_').replace('-', '_');
+        if (!CATEGORY_TYPE_MAPPING.containsKey(normalized)) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "unsupported category: " + normalized);
+        }
+        return normalized;
+    }
+
+    private List<String> resolveTypeListByCategory(String normalizedType, String normalizedCategory) {
+        if (StringUtils.hasText(normalizedType) || !StringUtils.hasText(normalizedCategory)) {
+            return Collections.emptyList();
+        }
+        List<String> mappedTypes = CATEGORY_TYPE_MAPPING.getOrDefault(normalizedCategory, Collections.emptyList());
+        if (mappedTypes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(mappedTypes);
     }
 
     private String normalizeAndValidateType(String type) {

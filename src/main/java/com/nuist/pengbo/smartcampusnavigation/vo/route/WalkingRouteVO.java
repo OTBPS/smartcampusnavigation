@@ -7,6 +7,7 @@ public class WalkingRouteVO {
     private Long duration;
     private List<WalkingRouteStepVO> steps;
     private List<List<Double>> routePolyline;
+    private List<WalkingRouteVO> alternatives;
 
     public Long getDistance() {
         return distance;
@@ -38,5 +39,13 @@ public class WalkingRouteVO {
 
     public void setRoutePolyline(List<List<Double>> routePolyline) {
         this.routePolyline = routePolyline;
+    }
+
+    public List<WalkingRouteVO> getAlternatives() {
+        return alternatives;
+    }
+
+    public void setAlternatives(List<WalkingRouteVO> alternatives) {
+        this.alternatives = alternatives;
     }
 }

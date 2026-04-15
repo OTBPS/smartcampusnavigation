@@ -1,6 +1,7 @@
 (function () {
     const NUIST_CAMPUS_CENTER = [118.715422, 32.194426];
     const WEATHER_REFRESH_INTERVAL_MS = 60 * 1000;
+    const MAX_ROUTE_WAYPOINTS = 3;
     const CLASS_PERIOD_STARTS = [
         { period: 1, minuteOfDay: 8 * 60 },
         { period: 2, minuteOfDay: 10 * 60 + 10 },
@@ -31,16 +32,28 @@
         routeViaMarkers: [],
         routeLine: null,
         routeMode: "walking",
+        routeAlternatives: [],
+        selectedRouteAlternativeIndex: 0,
+        activeCategory: "",
+        routeHistories: [],
+        historyKeyword: "",
+        historyPanelOpen: false,
+        historyRouteMode: false,
+        pendingMapClickPoi: null,
         weatherRefreshTimer: null,
         weatherLoading: false
     };
 
     const elements = {
         searchForm: document.getElementById("poi-search-form"),
+        leftPanel: document.getElementById("left-panel"),
         resetBtn: document.getElementById("reset-btn"),
         searchName: document.getElementById("search-name"),
         searchType: document.getElementById("search-type"),
         searchFeedback: document.getElementById("search-feedback"),
+        resultsCard: document.getElementById("results-card"),
+        detailCard: document.getElementById("detail-card"),
+        routeCard: document.getElementById("route-card"),
         resultCount: document.getElementById("result-count"),
         resultList: document.getElementById("result-list"),
         resultEmpty: document.getElementById("result-empty"),
@@ -58,11 +71,14 @@
         locateCurrentBtn: document.getElementById("locate-current-btn"),
         routeStartName: document.getElementById("route-start-name"),
         routeEndName: document.getElementById("route-end-name"),
-        routeViaName: document.getElementById("route-via-name"),
+        routeWaypointList: document.getElementById("route-waypoint-list"),
+        addWaypointBtn: document.getElementById("add-waypoint-btn"),
         routeMode: document.getElementById("route-mode"),
         planRouteBtn: document.getElementById("plan-route-btn"),
         clearRouteBtn: document.getElementById("clear-route-btn"),
         routeFeedback: document.getElementById("route-feedback"),
+        routeAlternativeWrap: document.getElementById("route-alternative-wrap"),
+        routeAlternativeList: document.getElementById("route-alternative-list"),
         routeSummary: document.getElementById("route-summary"),
         routeDistance: document.getElementById("route-distance"),
         routeDuration: document.getElementById("route-duration"),
@@ -74,6 +90,26 @@
         weatherHumidity: document.getElementById("weather-humidity"),
         weatherWind: document.getElementById("weather-wind"),
         weatherUpdated: document.getElementById("weather-updated"),
+        mapWeatherText: document.getElementById("map-weather-text"),
+        mapWeatherTemp: document.getElementById("map-weather-temp"),
+        mapWeatherWind: document.getElementById("map-weather-wind"),
+        mapContainer: document.getElementById("map-container"),
+        mapPanel: document.querySelector(".map-panel"),
+        mapRoutePointMenu: document.getElementById("map-route-point-menu"),
+        mapMenuSetStart: document.getElementById("map-menu-set-start"),
+        mapMenuSetEnd: document.getElementById("map-menu-set-end"),
+        mapMenuSetVia: document.getElementById("map-menu-set-via"),
+        mapCategoryQuickPanel: document.getElementById("map-category-quick-panel"),
+        mapCategoryButtons: Array.from(document.querySelectorAll(".map-category-btn")),
+        historyCount: document.getElementById("history-count"),
+        historyToggleBtn: document.getElementById("history-toggle-btn"),
+        historyStatus: document.getElementById("history-status"),
+        historyPanel: document.getElementById("history-panel"),
+        historySearchInput: document.getElementById("history-search-input"),
+        historySearchBtn: document.getElementById("history-search-btn"),
+        historyResetBtn: document.getElementById("history-reset-btn"),
+        historyList: document.getElementById("history-list"),
+        historyEmpty: document.getElementById("history-empty"),
         suggestionTitle: document.getElementById("suggestion-title"),
         suggestionList: document.getElementById("suggestion-list"),
         suggestionStatus: document.getElementById("suggestion-status"),
@@ -83,16 +119,18 @@
 
     async function init() {
         bindEvents();
+        setSearchCardsVisible(false);
+        setActiveCategoryButton("");
         await loadPoiTypes();
         renderRouteSelection();
         loadWeatherSummary();
         startWeatherAutoRefresh();
         updateClassPeakStatus();
+        await loadRouteHistoryList("");
         loadContextSuggestions({
             sceneType: "home"
         });
         initMap();
-        await runSearch();
     }
 
     function bindEvents() {
@@ -104,7 +142,17 @@
         elements.resetBtn.addEventListener("click", function () {
             elements.searchName.value = "";
             elements.searchType.value = "";
-            runSearch();
+            state.activeCategory = "";
+            setActiveCategoryButton("");
+            state.selectedPoi = null;
+            state.selectedPoiId = null;
+            state.pois = [];
+            renderResultList();
+            clearDetail(false);
+            setHistoryRouteMode(false);
+            setSearchCardsVisible(false);
+            clearRouteAll(true);
+            setFeedback("Ready.");
         });
 
         elements.resultList.addEventListener("click", function (event) {
@@ -149,9 +197,175 @@
         elements.clearRouteBtn.addEventListener("click", function () {
             clearRouteAll(false);
         });
+
+        if (elements.addWaypointBtn) {
+            elements.addWaypointBtn.addEventListener("click", function () {
+                addEmptyWaypointSlot();
+            });
+        }
+
+        if (elements.routeWaypointList) {
+            elements.routeWaypointList.addEventListener("click", function (event) {
+                const removeButton = event.target.closest("[data-waypoint-remove]");
+                if (!removeButton) {
+                    return;
+                }
+                const index = Number(removeButton.dataset.waypointRemove);
+                if (!Number.isFinite(index)) {
+                    return;
+                }
+                removeWaypointSlot(index);
+            });
+        }
+
+        if (elements.historyToggleBtn) {
+            elements.historyToggleBtn.addEventListener("click", function () {
+                toggleHistoryPanel();
+            });
+        }
+
+        if (elements.historySearchBtn) {
+            elements.historySearchBtn.addEventListener("click", function () {
+                runHistorySearch();
+            });
+        }
+
+        if (elements.historyResetBtn) {
+            elements.historyResetBtn.addEventListener("click", function () {
+                if (elements.historySearchInput) {
+                    elements.historySearchInput.value = "";
+                }
+                runHistorySearch();
+            });
+        }
+
+        if (elements.historySearchInput) {
+            elements.historySearchInput.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    runHistorySearch();
+                }
+            });
+        }
+
+        if (elements.historyList) {
+            elements.historyList.addEventListener("click", function (event) {
+                const actionButton = event.target.closest("[data-history-action]");
+                if (!actionButton) {
+                    return;
+                }
+                const action = actionButton.dataset.historyAction;
+                const id = Number(actionButton.dataset.historyId);
+                if (!Number.isFinite(id)) {
+                    return;
+                }
+                if (action === "use") {
+                    useRouteHistory(id);
+                    return;
+                }
+                if (action === "edit") {
+                    editRouteHistoryTitle(id);
+                    return;
+                }
+                if (action === "delete") {
+                    deleteRouteHistory(id);
+                }
+            });
+        }
+
+        if (elements.routeAlternativeList) {
+            elements.routeAlternativeList.addEventListener("click", function (event) {
+                const altButton = event.target.closest("[data-alt-index]");
+                if (!altButton) {
+                    return;
+                }
+                const altIndex = Number(altButton.dataset.altIndex);
+                if (!Number.isFinite(altIndex)) {
+                    return;
+                }
+                selectRouteAlternative(altIndex);
+            });
+        }
+
+        if (elements.mapMenuSetStart) {
+            elements.mapMenuSetStart.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                applyMapClickRoutePoint("start");
+            });
+        }
+
+        if (elements.mapMenuSetEnd) {
+            elements.mapMenuSetEnd.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                applyMapClickRoutePoint("end");
+            });
+        }
+
+        if (elements.mapMenuSetVia) {
+            elements.mapMenuSetVia.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                applyMapClickRoutePoint("via");
+            });
+        }
+
+        if (elements.mapRoutePointMenu) {
+            ["mousedown", "mouseup", "click", "dblclick", "contextmenu"].forEach(function (eventName) {
+                elements.mapRoutePointMenu.addEventListener(eventName, function (event) {
+                    if (eventName === "contextmenu") {
+                        event.preventDefault();
+                    }
+                    event.stopPropagation();
+                });
+            });
+        }
+
+        if (elements.mapPanel) {
+            elements.mapPanel.addEventListener("contextmenu", function (event) {
+                event.preventDefault();
+            });
+        }
+
+        if (elements.mapCategoryQuickPanel) {
+            elements.mapCategoryQuickPanel.addEventListener("click", function (event) {
+                const button = event.target.closest("[data-category]");
+                if (!button) {
+                    return;
+                }
+                const category = normalizeInput(button.dataset.category || "").toLowerCase();
+                if (!category) {
+                    return;
+                }
+                runCategoryQuickSearch(category);
+            });
+        }
+
+        document.addEventListener("mousedown", function (event) {
+            if (!elements.mapRoutePointMenu || elements.mapRoutePointMenu.hidden) {
+                return;
+            }
+            const inMenu = event.target && event.target.closest
+                ? event.target.closest("#map-route-point-menu")
+                : null;
+            if (inMenu) {
+                return;
+            }
+            hideMapRoutePointMenu();
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                hideMapRoutePointMenu(true);
+            }
+        });
     }
 
     async function runSearch() {
+        state.activeCategory = "";
+        setActiveCategoryButton("");
+        setHistoryRouteMode(false);
         setFeedback("Searching...");
         try {
             const params = new URLSearchParams();
@@ -169,27 +383,92 @@
             const query = params.toString() ? "?" + params.toString() : "";
             const pois = await fetchApi("/api/v1/pois" + query);
             state.pois = Array.isArray(pois) ? pois : [];
+            state.selectedPoiId = null;
+            state.selectedPoi = null;
 
             renderResultList();
+            clearDetail(false);
+            setSearchCardsVisible(true);
             setFeedback("Loaded " + state.pois.length + " POI(s).");
 
             if (state.pois.length === 0) {
-                clearDetail(false);
                 clearRouteAll(true);
                 return;
             }
-
-            const retained = state.pois.find(function (poi) {
-                return poi.id === state.selectedPoiId;
-            });
-            const targetId = retained ? retained.id : state.pois[0].id;
-            await selectPoi(targetId, {
-                refreshSuggestion: false
-            });
         } catch (error) {
             resetPageStateAfterSearchError();
+            setSearchCardsVisible(false);
             setFeedback(error.message || "Search failed.");
         }
+    }
+
+    async function runCategoryQuickSearch(category) {
+        if (!category) {
+            return;
+        }
+
+        if (state.activeCategory === category) {
+            state.activeCategory = "";
+            setActiveCategoryButton("");
+            clearSearchCardsForCategoryReset();
+            setFeedback("Category filter cleared.");
+            return;
+        }
+
+        state.activeCategory = category;
+        setActiveCategoryButton(category);
+        setHistoryRouteMode(false);
+        setFeedback("Loading " + category + " POIs...");
+
+        try {
+            const params = new URLSearchParams();
+            params.set("category", category);
+            params.set("enabled", "true");
+            const pois = await fetchApi("/api/v1/pois?" + params.toString());
+            state.pois = Array.isArray(pois) ? pois : [];
+            state.selectedPoiId = null;
+            state.selectedPoi = null;
+            renderResultList();
+            clearDetail(false);
+            setSearchCardsVisible(true);
+            setFeedback("Loaded " + state.pois.length + " POI(s) from " + category + ".");
+        } catch (error) {
+            setFeedback(error.message || "Failed to load category POIs.");
+        }
+    }
+
+    function clearSearchCardsForCategoryReset() {
+        state.pois = [];
+        state.selectedPoi = null;
+        state.selectedPoiId = null;
+        renderResultList();
+        clearDetail(false);
+
+        if (elements.leftPanel) {
+            elements.leftPanel.classList.add("search-submitted");
+        }
+        if (elements.resultsCard) {
+            elements.resultsCard.hidden = true;
+            elements.resultsCard.classList.add("card-hidden");
+        }
+        if (elements.detailCard) {
+            elements.detailCard.hidden = true;
+            elements.detailCard.classList.add("card-hidden");
+        }
+        if (elements.routeCard) {
+            elements.routeCard.hidden = false;
+            elements.routeCard.classList.remove("card-hidden");
+        }
+    }
+
+    function setActiveCategoryButton(category) {
+        if (!elements.mapCategoryButtons || elements.mapCategoryButtons.length === 0) {
+            return;
+        }
+        elements.mapCategoryButtons.forEach(function (button) {
+            const value = normalizeInput(button.dataset.category || "").toLowerCase();
+            button.classList.toggle("active", !!category && value === category);
+        });
     }
 
     async function loadPoiTypes() {
@@ -324,6 +603,19 @@
                 center: NUIST_CAMPUS_CENTER,
                 resizeEnable: true
             });
+            state.map.on("rightclick", handleMapRightClickForRouteSelection);
+            state.map.on("click", function (event) {
+                if (isEventFromMapRoutePointMenu(event)) {
+                    return;
+                }
+                hideMapRoutePointMenu(false);
+            });
+            state.map.on("movestart", function () {
+                hideMapRoutePointMenu(false);
+            });
+            state.map.on("zoomstart", function () {
+                hideMapRoutePointMenu(false);
+            });
             state.mapReady = true;
             hideMapStatus();
         } catch (error) {
@@ -400,6 +692,288 @@
         renderResultList();
         clearDetail(false);
         clearRouteAll(true);
+    }
+
+    function setSearchCardsVisible(visible) {
+        const shouldShow = visible === true;
+        if (elements.leftPanel) {
+            elements.leftPanel.classList.toggle("search-submitted", shouldShow);
+        }
+        if (elements.resultsCard) {
+            elements.resultsCard.hidden = !shouldShow;
+            elements.resultsCard.classList.toggle("card-hidden", !shouldShow);
+        }
+        if (elements.detailCard) {
+            elements.detailCard.hidden = !shouldShow;
+            elements.detailCard.classList.toggle("card-hidden", !shouldShow);
+        }
+        if (elements.routeCard) {
+            elements.routeCard.hidden = !shouldShow;
+            elements.routeCard.classList.toggle("card-hidden", !shouldShow);
+        }
+        applyHistoryRouteVisibility();
+    }
+
+    function setHistoryRouteMode(enabled) {
+        const shouldEnable = enabled === true;
+        state.historyRouteMode = shouldEnable;
+        if (elements.leftPanel) {
+            elements.leftPanel.classList.toggle("history-route-only", shouldEnable);
+        }
+        applyHistoryRouteVisibility();
+    }
+
+    function applyHistoryRouteVisibility() {
+        if (!state.historyRouteMode) {
+            return;
+        }
+        if (elements.resultsCard) {
+            elements.resultsCard.hidden = true;
+            elements.resultsCard.classList.add("card-hidden");
+        }
+        if (elements.detailCard) {
+            elements.detailCard.hidden = true;
+            elements.detailCard.classList.add("card-hidden");
+        }
+        if (elements.routeCard) {
+            elements.routeCard.hidden = false;
+            elements.routeCard.classList.remove("card-hidden");
+        }
+    }
+
+    function toggleHistoryPanel() {
+        setHistoryPanelOpen(!state.historyPanelOpen);
+    }
+
+    function setHistoryPanelOpen(open) {
+        const shouldOpen = open === true;
+        state.historyPanelOpen = shouldOpen;
+        if (elements.historyPanel) {
+            elements.historyPanel.hidden = !shouldOpen;
+        }
+        if (elements.historyToggleBtn) {
+            elements.historyToggleBtn.textContent = shouldOpen ? "Close History Menu" : "Open History Menu";
+        }
+    }
+
+    function runHistorySearch() {
+        const keyword = elements.historySearchInput ? normalizeInput(elements.historySearchInput.value) : "";
+        loadRouteHistoryList(keyword);
+    }
+
+    async function loadRouteHistoryList(keyword) {
+        state.historyKeyword = normalizeInput(keyword || "");
+        const query = new URLSearchParams();
+        if (state.historyKeyword) {
+            query.set("keyword", state.historyKeyword);
+        }
+        const url = query.toString()
+            ? "/api/v1/route-histories?" + query.toString()
+            : "/api/v1/route-histories";
+
+        try {
+            const responseData = await fetchApi(url);
+            const items = responseData && Array.isArray(responseData.items) ? responseData.items : [];
+            const totalCount = responseData && Number.isFinite(Number(responseData.totalCount))
+                ? Number(responseData.totalCount)
+                : items.length;
+            state.routeHistories = items;
+            renderRouteHistoryList(items, totalCount);
+            setHistoryStatus("History loaded.");
+        } catch (error) {
+            state.routeHistories = [];
+            renderRouteHistoryList([], 0);
+            setHistoryStatus(error.message || "Failed to load history records.");
+        }
+    }
+
+    function renderRouteHistoryList(items, totalCount) {
+        const histories = Array.isArray(items) ? items : [];
+        if (elements.historyCount) {
+            elements.historyCount.textContent = String(Math.max(0, Number(totalCount) || 0));
+        }
+        if (!elements.historyList || !elements.historyEmpty) {
+            return;
+        }
+
+        elements.historyList.innerHTML = "";
+        if (histories.length === 0) {
+            elements.historyEmpty.classList.remove("hidden");
+            return;
+        }
+
+        elements.historyEmpty.classList.add("hidden");
+        histories.forEach(function (item) {
+            const historyItem = document.createElement("li");
+            historyItem.className = "history-item";
+
+            const title = normalizeText(item.title, normalizeText(item.startName, "Start") + " -> " + normalizeText(item.endName, "Destination"));
+            const mode = normalizeRouteMode(item.mode);
+            const distance = formatDistance(item.distance);
+            const duration = formatDuration(item.duration);
+            const createdAt = formatWeatherTime(item.updatedAt || item.createdAt);
+
+            historyItem.innerHTML =
+                "<div class=\"history-item-title\">" + escapeHtml(title) + "</div>" +
+                "<div class=\"history-item-meta\">" +
+                escapeHtml(normalizeText(item.startName, "Start")) + " -> " + escapeHtml(normalizeText(item.endName, "Destination")) +
+                " | " + escapeHtml(capitalizeRouteMode(mode)) +
+                " | " + escapeHtml(distance) +
+                " | " + escapeHtml(duration) +
+                " | " + escapeHtml(createdAt) +
+                "</div>" +
+                "<div class=\"history-item-actions\">" +
+                "<button type=\"button\" class=\"history-action-btn\" data-history-action=\"use\" data-history-id=\"" + String(item.id) + "\">Use</button>" +
+                "<button type=\"button\" class=\"history-action-btn\" data-history-action=\"edit\" data-history-id=\"" + String(item.id) + "\">Edit</button>" +
+                "<button type=\"button\" class=\"history-action-btn delete\" data-history-action=\"delete\" data-history-id=\"" + String(item.id) + "\">Delete</button>" +
+                "</div>";
+
+            elements.historyList.appendChild(historyItem);
+        });
+    }
+
+    function setHistoryStatus(message) {
+        if (!elements.historyStatus) {
+            return;
+        }
+        elements.historyStatus.textContent = message || "History ready.";
+    }
+
+    function buildHistoryPoi(record, type) {
+        if (!record) {
+            return null;
+        }
+        const isStart = type === "start";
+        const lng = Number(isStart ? record.startLng : record.endLng);
+        const lat = Number(isStart ? record.startLat : record.endLat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+            return null;
+        }
+        return {
+            id: "__history_" + type + "_" + String(record.id),
+            name: isStart ? normalizeText(record.startName, "Start") : normalizeText(record.endName, "Destination"),
+            type: "history_point",
+            longitude: lng,
+            latitude: lat,
+            description: "Route history point",
+            openingHours: "-",
+            enabled: true
+        };
+    }
+
+    function useRouteHistory(historyId) {
+        const record = state.routeHistories.find(function (item) {
+            return item.id === historyId;
+        });
+        if (!record) {
+            setHistoryStatus("History record not found.");
+            return;
+        }
+
+        const startPoi = buildHistoryPoi(record, "start");
+        const endPoi = buildHistoryPoi(record, "end");
+        if (!startPoi || !endPoi) {
+            setHistoryStatus("History coordinates are invalid.");
+            return;
+        }
+
+        clearRouteDrawing();
+        state.routeStartPoi = startPoi;
+        state.routeEndPoi = endPoi;
+        state.routeViaPois = [];
+        state.routeMode = normalizeRouteMode(record.mode);
+        if (elements.routeMode) {
+            elements.routeMode.value = state.routeMode;
+        }
+
+        setSearchCardsVisible(true);
+        setHistoryRouteMode(true);
+
+        renderRouteSelection();
+        renderRouteEndpointMarkers();
+        fitRouteView();
+        setRouteFeedback("History loaded. Click Start Route Planning.");
+        setHistoryStatus("History applied.");
+    }
+
+    async function editRouteHistoryTitle(historyId) {
+        const record = state.routeHistories.find(function (item) {
+            return item.id === historyId;
+        });
+        if (!record) {
+            return;
+        }
+        const nextTitle = window.prompt("Edit history title", normalizeText(record.title, ""));
+        if (nextTitle === null) {
+            return;
+        }
+        const title = normalizeInput(nextTitle);
+        if (!title) {
+            window.alert("Title cannot be empty.");
+            return;
+        }
+
+        try {
+            await fetchApi("/api/v1/route-histories/" + historyId, {
+                method: "PUT",
+                body: {title: title}
+            });
+            setHistoryStatus("History title updated.");
+            await loadRouteHistoryList(state.historyKeyword);
+        } catch (error) {
+            setHistoryStatus(error.message || "Failed to update history title.");
+        }
+    }
+
+    async function deleteRouteHistory(historyId) {
+        const confirmed = window.confirm("Delete this route history?");
+        if (!confirmed) {
+            return;
+        }
+        try {
+            await fetchApi("/api/v1/route-histories/" + historyId, {
+                method: "DELETE"
+            });
+            setHistoryStatus("History record deleted.");
+            await loadRouteHistoryList(state.historyKeyword);
+        } catch (error) {
+            setHistoryStatus(error.message || "Failed to delete history record.");
+        }
+    }
+
+    async function saveCurrentRouteHistory(routeData) {
+        if (!state.routeStartPoi || !state.routeEndPoi) {
+            return;
+        }
+        const viaPayload = getAssignedWaypoints()
+            .map(function (poi) {
+                return {
+                    name: poi.name,
+                    longitude: Number(poi.longitude),
+                    latitude: Number(poi.latitude)
+                };
+            }).filter(function (poi) {
+                return Number.isFinite(poi.longitude) && Number.isFinite(poi.latitude);
+            });
+
+        const payload = {
+            title: normalizeText(state.routeStartPoi.name, "Start") + " -> " + normalizeText(state.routeEndPoi.name, "Destination"),
+            mode: normalizeRouteMode(state.routeMode),
+            startName: normalizeText(state.routeStartPoi.name, "Start"),
+            startLng: Number(state.routeStartPoi.longitude),
+            startLat: Number(state.routeStartPoi.latitude),
+            endName: normalizeText(state.routeEndPoi.name, "Destination"),
+            endLng: Number(state.routeEndPoi.longitude),
+            endLat: Number(state.routeEndPoi.latitude),
+            viaJson: JSON.stringify(viaPayload),
+            distance: Number(routeData && routeData.distance ? routeData.distance : 0),
+            duration: Number(routeData && routeData.duration ? routeData.duration : 0)
+        };
+
+        await fetchApi("/api/v1/route-histories", {
+            method: "POST",
+            body: payload
+        });
     }
 
     async function loadWeatherSummary() {
@@ -504,6 +1078,15 @@
         elements.weatherWind.textContent = windText || "-";
         elements.weatherUpdated.textContent = formatWeatherTime(weather.obsTime);
         elements.weatherStatus.textContent = "Weather loaded.";
+        if (elements.mapWeatherText) {
+            elements.mapWeatherText.textContent = "Weather: " + weatherText;
+        }
+        if (elements.mapWeatherTemp) {
+            elements.mapWeatherTemp.textContent = "Temp: " + temp;
+        }
+        if (elements.mapWeatherWind) {
+            elements.mapWeatherWind.textContent = "Wind: " + (windText || "-");
+        }
     }
 
     function renderWeatherFallback(message) {
@@ -514,6 +1097,15 @@
         elements.weatherWind.textContent = "-";
         elements.weatherUpdated.textContent = "-";
         elements.weatherStatus.textContent = message || "Weather unavailable.";
+        if (elements.mapWeatherText) {
+            elements.mapWeatherText.textContent = "Weather: -";
+        }
+        if (elements.mapWeatherTemp) {
+            elements.mapWeatherTemp.textContent = "Temp: -";
+        }
+        if (elements.mapWeatherWind) {
+            elements.mapWeatherWind.textContent = "Wind: -";
+        }
     }
 
     async function loadContextSuggestions(context) {
@@ -594,13 +1186,8 @@
     }
     function assignRoutePoint(type) {
         if (type === "start" && state.currentLocation) {
-            state.routeStartPoi = buildCurrentLocationPoi();
-            state.routeViaPois = state.routeViaPois.filter(function (poi) {
-                return poi.id !== state.routeStartPoi.id;
-            });
-            renderRouteSelection();
-            renderRouteEndpointMarkers();
-            setRouteFeedback("Start point set to current location.");
+            const currentPoi = buildCurrentLocationPoi();
+            setRoutePointFromPoi(type, currentPoi, "Start point set to current location.");
             return;
         }
 
@@ -609,39 +1196,305 @@
             return;
         }
 
+        setRoutePointFromPoi(type, state.selectedPoi, "Route point updated.");
+    }
+
+    function setRoutePointFromPoi(type, poi, feedbackMessage) {
+        if (!poi) {
+            window.alert("\u8bf7\u5148\u9009\u62e9\u5730\u70b9");
+            return false;
+        }
+        ensureRoutePlanningCardVisible();
+
         if (type === "start") {
-            state.routeStartPoi = state.selectedPoi;
-            state.routeViaPois = state.routeViaPois.filter(function (poi) {
-                return poi.id !== state.routeStartPoi.id;
+            state.routeStartPoi = poi;
+            state.routeViaPois = state.routeViaPois.map(function (item) {
+                if (!item) {
+                    return null;
+                }
+                return isSamePoiOrCoordinate(item, state.routeStartPoi) ? null : item;
             });
         } else if (type === "end") {
-            state.routeEndPoi = state.selectedPoi;
-            state.routeViaPois = state.routeViaPois.filter(function (poi) {
-                return poi.id !== state.routeEndPoi.id;
+            state.routeEndPoi = poi;
+            state.routeViaPois = state.routeViaPois.map(function (item) {
+                if (!item) {
+                    return null;
+                }
+                return isSamePoiOrCoordinate(item, state.routeEndPoi) ? null : item;
             });
         } else if (type === "via") {
-            if (!state.routeStartPoi || !state.routeEndPoi) {
-                window.alert("\u8bf7\u5148\u9009\u62e9\u8d77\u70b9\u548c\u7ec8\u70b9");
-                return;
-            }
-            if (state.selectedPoi.id === state.routeStartPoi.id || state.selectedPoi.id === state.routeEndPoi.id) {
+            if (isSamePoiOrCoordinate(poi, state.routeStartPoi) || isSamePoiOrCoordinate(poi, state.routeEndPoi)) {
                 window.alert("\u9014\u7ecf\u70b9\u4e0d\u80fd\u4e0e\u8d77\u70b9\u6216\u7ec8\u70b9\u76f8\u540c");
-                return;
+                return false;
             }
-            if (state.routeViaPois.some(function (poi) { return poi.id === state.selectedPoi.id; })) {
+            if (state.routeViaPois.some(function (item) { return item && isSamePoiOrCoordinate(item, poi); })) {
                 window.alert("\u8be5\u5730\u70b9\u5df2\u6dfb\u52a0\u4e3a\u9014\u7ecf\u70b9");
-                return;
+                return false;
             }
-            if (state.routeViaPois.length >= 3) {
-                window.alert("\u9014\u7ecf\u70b9\u8fc7\u591a");
-                return;
+            const firstEmptyIndex = findFirstEmptyWaypointIndex();
+            if (firstEmptyIndex >= 0) {
+                state.routeViaPois[firstEmptyIndex] = poi;
+            } else {
+                if (state.routeViaPois.length >= MAX_ROUTE_WAYPOINTS) {
+                    window.alert("\u9014\u7ecf\u70b9\u8fc7\u591a");
+                    return false;
+                }
+                state.routeViaPois.push(poi);
             }
-            state.routeViaPois.push(state.selectedPoi);
+        } else {
+            return false;
         }
 
         renderRouteSelection();
         renderRouteEndpointMarkers();
-        setRouteFeedback("Route point updated.");
+        setRouteFeedback(feedbackMessage || "Route point updated.");
+        tryAutoReplanRoute();
+        return true;
+    }
+
+    function addEmptyWaypointSlot() {
+        ensureRoutePlanningCardVisible();
+        if (state.routeViaPois.length >= MAX_ROUTE_WAYPOINTS) {
+            window.alert("\u9014\u7ecf\u70b9\u8fc7\u591a");
+            return;
+        }
+        state.routeViaPois.push(null);
+        renderRouteSelection();
+        setRouteFeedback("Waypoint slot added.");
+    }
+
+    function removeWaypointSlot(index) {
+        ensureRoutePlanningCardVisible();
+        if (!Number.isInteger(index) || index < 0 || index >= state.routeViaPois.length) {
+            return;
+        }
+        state.routeViaPois.splice(index, 1);
+        renderRouteSelection();
+        renderRouteEndpointMarkers();
+        setRouteFeedback("Waypoint removed.");
+        tryAutoReplanRoute();
+    }
+
+    function findFirstEmptyWaypointIndex() {
+        for (let i = 0; i < state.routeViaPois.length; i += 1) {
+            if (!state.routeViaPois[i]) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function getAssignedWaypoints() {
+        if (!Array.isArray(state.routeViaPois)) {
+            return [];
+        }
+        return state.routeViaPois.filter(function (poi) {
+            return !!poi;
+        });
+    }
+
+    function tryAutoReplanRoute() {
+        if (!state.routeStartPoi || !state.routeEndPoi) {
+            return;
+        }
+        planWalkingRoute();
+    }
+
+    function handleMapRightClickForRouteSelection(event) {
+        if (isEventFromMapRoutePointMenu(event)) {
+            return;
+        }
+        if (!event || !event.lnglat) {
+            return;
+        }
+        const rawEvent = event.originEvent || event.domEvent || event.originalEvent;
+        if (rawEvent && typeof rawEvent.preventDefault === "function") {
+            rawEvent.preventDefault();
+        }
+
+        const lng = Number(typeof event.lnglat.getLng === "function" ? event.lnglat.getLng() : event.lnglat.lng);
+        const lat = Number(typeof event.lnglat.getLat === "function" ? event.lnglat.getLat() : event.lnglat.lat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+            window.alert("Invalid map coordinate.");
+            return;
+        }
+
+        state.pendingMapClickPoi = buildMapClickPoi(lng, lat);
+        showMapRoutePointMenu(event);
+    }
+
+    function applyMapClickRoutePoint(type) {
+        const mapPoi = readMapRoutePointFromMenu() || state.pendingMapClickPoi;
+        hideMapRoutePointMenu(true);
+        if (!mapPoi) {
+            return;
+        }
+        const messages = {
+            start: "Start point set from map.",
+            end: "Destination set from map.",
+            via: "Waypoint set from map."
+        };
+        const updated = setRoutePointFromPoi(type, mapPoi, messages[type] || "Route point updated.");
+        if (!updated) {
+            return;
+        }
+    }
+
+    function showMapRoutePointMenu(event) {
+        if (!elements.mapRoutePointMenu || !elements.mapPanel) {
+            return;
+        }
+        const menu = elements.mapRoutePointMenu;
+        const panel = elements.mapPanel;
+        const panelWidth = panel.clientWidth;
+        const panelHeight = panel.clientHeight;
+        const pixel = getMapClickPixel(event);
+        let left = pixel[0] + 14;
+        let top = pixel[1] - 4;
+
+        if (event && event.lnglat) {
+            const lng = Number(typeof event.lnglat.getLng === "function" ? event.lnglat.getLng() : event.lnglat.lng);
+            const lat = Number(typeof event.lnglat.getLat === "function" ? event.lnglat.getLat() : event.lnglat.lat);
+            if (Number.isFinite(lng) && Number.isFinite(lat)) {
+                menu.dataset.lng = Number(lng).toFixed(6);
+                menu.dataset.lat = Number(lat).toFixed(6);
+            }
+        }
+
+        menu.hidden = false;
+        menu.style.left = left + "px";
+        menu.style.top = top + "px";
+
+        const menuWidth = menu.offsetWidth || 190;
+        const menuHeight = menu.offsetHeight || 130;
+        const minPadding = 8;
+        const maxLeft = Math.max(minPadding, panelWidth - menuWidth - minPadding);
+        const maxTop = Math.max(minPadding, panelHeight - menuHeight - minPadding);
+        left = Math.min(Math.max(minPadding, left), maxLeft);
+        top = Math.min(Math.max(minPadding, top), maxTop);
+        menu.style.left = left + "px";
+        menu.style.top = top + "px";
+    }
+
+    function hideMapRoutePointMenu(clearPending) {
+        const shouldClearPending = clearPending === true;
+        if (shouldClearPending) {
+            state.pendingMapClickPoi = null;
+        }
+        if (!elements.mapRoutePointMenu) {
+            return;
+        }
+        if (shouldClearPending) {
+            delete elements.mapRoutePointMenu.dataset.lng;
+            delete elements.mapRoutePointMenu.dataset.lat;
+        }
+        elements.mapRoutePointMenu.hidden = true;
+    }
+
+    function readMapRoutePointFromMenu() {
+        if (!elements.mapRoutePointMenu) {
+            return null;
+        }
+        const lng = Number(elements.mapRoutePointMenu.dataset.lng);
+        const lat = Number(elements.mapRoutePointMenu.dataset.lat);
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+            return null;
+        }
+        return buildMapClickPoi(lng, lat);
+    }
+
+    function isEventFromMapRoutePointMenu(event) {
+        const rawEvent = event && (event.originEvent || event.domEvent || event.originalEvent);
+        const target = rawEvent && rawEvent.target;
+        if (!target || typeof target.closest !== "function") {
+            return false;
+        }
+        return Boolean(target.closest("#map-route-point-menu"));
+    }
+
+    function getMapClickPixel(event) {
+        if (event && event.pixel) {
+            if (typeof event.pixel.getX === "function" && typeof event.pixel.getY === "function") {
+                return [Number(event.pixel.getX()) || 0, Number(event.pixel.getY()) || 0];
+            }
+            const x = Number(event.pixel.x);
+            const y = Number(event.pixel.y);
+            if (Number.isFinite(x) && Number.isFinite(y)) {
+                return [x, y];
+            }
+        }
+        if (state.map && event && event.lnglat && typeof state.map.lngLatToContainer === "function") {
+            const p = state.map.lngLatToContainer(event.lnglat);
+            if (p) {
+                const x = Number(typeof p.getX === "function" ? p.getX() : p.x);
+                const y = Number(typeof p.getY === "function" ? p.getY() : p.y);
+                if (Number.isFinite(x) && Number.isFinite(y)) {
+                    return [x, y];
+                }
+            }
+        }
+        return [16, 16];
+    }
+
+    function buildMapClickPoi(lng, lat) {
+        const normalizedLng = Number(lng).toFixed(6);
+        const normalizedLat = Number(lat).toFixed(6);
+        return {
+            id: "__map_click__" + normalizedLng + "_" + normalizedLat,
+            name: "Map Point (" + normalizedLng + ", " + normalizedLat + ")",
+            type: "map_point",
+            longitude: Number(normalizedLng),
+            latitude: Number(normalizedLat),
+            description: "Point selected from map click",
+            openingHours: "-",
+            enabled: true
+        };
+    }
+
+    function isSamePoiOrCoordinate(a, b) {
+        if (!a || !b) {
+            return false;
+        }
+        if (a.id !== undefined && b.id !== undefined && a.id === b.id) {
+            return true;
+        }
+        const aPosition = getPoiPosition(a);
+        const bPosition = getPoiPosition(b);
+        if (!aPosition || !bPosition) {
+            return false;
+        }
+        return Math.abs(aPosition[0] - bPosition[0]) < 0.000001
+            && Math.abs(aPosition[1] - bPosition[1]) < 0.000001;
+    }
+
+    function ensureRoutePlanningCardVisible() {
+        state.historyRouteMode = false;
+        if (elements.leftPanel) {
+            elements.leftPanel.classList.remove("history-route-only");
+        }
+        setSearchCardsVisible(true);
+
+        if (elements.leftPanel) {
+            elements.leftPanel.classList.add("search-submitted");
+        }
+        if (elements.resultsCard) {
+            elements.resultsCard.hidden = true;
+            elements.resultsCard.classList.add("card-hidden");
+        }
+        if (elements.detailCard) {
+            elements.detailCard.hidden = true;
+            elements.detailCard.classList.add("card-hidden");
+        }
+        if (elements.routeCard) {
+            elements.routeCard.hidden = false;
+            elements.routeCard.classList.remove("card-hidden");
+            if (typeof elements.routeCard.scrollIntoView === "function") {
+                elements.routeCard.scrollIntoView({
+                    block: "nearest",
+                    behavior: "smooth"
+                });
+            }
+        }
     }
 
     async function planWalkingRoute() {
@@ -658,9 +1511,10 @@
             setRouteFeedback("Start or destination has invalid coordinates.");
             return;
         }
+        const viaPois = getAssignedWaypoints();
         const viaPositions = [];
-        for (let i = 0; i < state.routeViaPois.length; i += 1) {
-            const viaPoi = state.routeViaPois[i];
+        for (let i = 0; i < viaPois.length; i += 1) {
+            const viaPoi = viaPois[i];
             const viaPosition = getPoiPosition(viaPoi);
             if (!viaPosition) {
                 setRouteFeedback("Waypoint has invalid coordinates.");
@@ -690,23 +1544,35 @@
         try {
             setRouteFeedback("Planning " + state.routeMode + " route...");
             const routeData = await fetchApi(routeEndpoint + "?" + params.toString());
-            const polyline = normalizeRoutePolyline(routeData.routePolyline);
-            if (polyline.length === 0) {
-                setRouteFeedback("No " + state.routeMode + " route polyline returned.");
+            const alternatives = normalizeRouteAlternatives(routeData);
+            if (alternatives.length === 0) {
+                setRouteFeedback("No " + state.routeMode + " route alternatives returned.");
                 refreshSuggestionsAfterRouteClear();
                 return;
             }
 
-            drawRoutePolyline(polyline, state.routeMode);
+            state.routeAlternatives = alternatives;
+            state.selectedRouteAlternativeIndex = 0;
+            const selectedRoute = alternatives[0];
+
+            drawRoutePolyline(selectedRoute.routePolyline, state.routeMode);
             renderRouteEndpointMarkers();
-            renderRouteSummary(routeData);
+            renderRouteSummary(selectedRoute);
+            renderRouteAlternatives();
             fitRouteView();
-            setRouteFeedback(capitalizeRouteMode(state.routeMode) + " route planned.");
+            let routeMessage = capitalizeRouteMode(state.routeMode) + " route planned.";
+            try {
+                await saveCurrentRouteHistory(selectedRoute);
+                await loadRouteHistoryList(state.historyKeyword);
+            } catch (historyError) {
+                routeMessage += " Route save failed, route remains available.";
+            }
+            setRouteFeedback(routeMessage);
             loadContextSuggestions({
                 sceneType: "route_planning",
                 poiId: state.routeEndPoi ? state.routeEndPoi.id : null,
-                routeDistance: routeData.distance,
-                routeDuration: routeData.duration
+                routeDistance: selectedRoute.distance,
+                routeDuration: selectedRoute.duration
             });
         } catch (error) {
             setRouteFeedback(error.message || (capitalizeRouteMode(state.routeMode) + " route planning failed."));
@@ -721,6 +1587,8 @@
         state.routeStartPoi = null;
         state.routeEndPoi = null;
         state.routeViaPois = [];
+        state.routeAlternatives = [];
+        state.selectedRouteAlternativeIndex = 0;
         renderRouteSelection();
         if (!isSilent) {
             setRouteFeedback("Route cleared.");
@@ -775,12 +1643,14 @@
         }
 
         state.routeViaMarkers = [];
-        state.routeViaPois.forEach(function (viaPoi, index) {
+        let viaMarkerOrder = 0;
+        state.routeViaPois.forEach(function (viaPoi) {
             const viaPos = getPoiPosition(viaPoi);
             if (!viaPos) {
                 return;
             }
-            const marker = createEndpointMarker(viaPos, "via", viaPoi.name || "Waypoint", "V" + (index + 1));
+            viaMarkerOrder += 1;
+            const marker = createEndpointMarker(viaPos, "via", viaPoi.name || "Waypoint", "V" + viaMarkerOrder);
             state.routeViaMarkers.push(marker);
             state.map.add(marker);
         });
@@ -817,17 +1687,40 @@
     }
 
     function renderRouteSelection() {
-        elements.routeStartName.textContent = state.routeStartPoi ? state.routeStartPoi.name : "Not selected";
-        elements.routeEndName.textContent = state.routeEndPoi ? state.routeEndPoi.name : "Not selected";
-        if (!state.routeViaPois || state.routeViaPois.length === 0) {
-            elements.routeViaName.textContent = "Not selected";
+        if (elements.routeStartName) {
+            elements.routeStartName.value = state.routeStartPoi ? state.routeStartPoi.name : "Not selected";
+        }
+        if (elements.routeEndName) {
+            elements.routeEndName.value = state.routeEndPoi ? state.routeEndPoi.name : "Not selected";
+        }
+        renderWaypointRows();
+    }
+
+    function renderWaypointRows() {
+        if (!elements.routeWaypointList) {
             return;
         }
-        elements.routeViaName.textContent = state.routeViaPois
-            .map(function (poi, index) {
-                return "V" + (index + 1) + ": " + poi.name;
-            })
-            .join(" | ");
+        const slots = Array.isArray(state.routeViaPois) ? state.routeViaPois : [];
+        elements.routeWaypointList.innerHTML = "";
+
+        slots.forEach(function (poi, index) {
+            const wrapper = document.createElement("div");
+            wrapper.className = "route-point route-waypoint-item" + (!poi ? " empty" : "");
+            wrapper.innerHTML =
+                "<span class=\"route-point-label\">Waypoint " + (index + 1) + "</span>" +
+                "<div class=\"route-waypoint-row\">" +
+                "<input type=\"text\" class=\"route-point-input\" readonly value=\"" + escapeHtml(poi ? poi.name : "Not selected") + "\">" +
+                "<button type=\"button\" class=\"route-waypoint-remove-btn\" data-waypoint-remove=\"" + index + "\" aria-label=\"Remove waypoint\">-</button>" +
+                "</div>";
+            elements.routeWaypointList.appendChild(wrapper);
+        });
+
+        if (elements.addWaypointBtn) {
+            elements.addWaypointBtn.disabled = slots.length >= MAX_ROUTE_WAYPOINTS;
+            elements.addWaypointBtn.textContent = slots.length >= MAX_ROUTE_WAYPOINTS
+                ? "Max 3 waypoints"
+                : "+ Add Waypoint";
+        }
     }
 
     function renderRouteSummary(routeData) {
@@ -852,6 +1745,72 @@
         elements.routeSteps.innerHTML = "";
         elements.routeDistance.textContent = "-";
         elements.routeDuration.textContent = "-";
+        if (elements.routeAlternativeWrap) {
+            elements.routeAlternativeWrap.classList.add("hidden");
+        }
+        if (elements.routeAlternativeList) {
+            elements.routeAlternativeList.innerHTML = "";
+        }
+    }
+
+    function normalizeRouteAlternatives(routeData) {
+        const candidates = Array.isArray(routeData && routeData.alternatives) && routeData.alternatives.length > 0
+            ? routeData.alternatives
+            : [routeData];
+
+        const result = [];
+        candidates.slice(0, 3).forEach(function (candidate) {
+            const polyline = normalizeRoutePolyline(candidate ? candidate.routePolyline : null);
+            if (polyline.length === 0) {
+                return;
+            }
+            result.push({
+                distance: candidate && candidate.distance ? candidate.distance : 0,
+                duration: candidate && candidate.duration ? candidate.duration : 0,
+                steps: Array.isArray(candidate && candidate.steps) ? candidate.steps : [],
+                routePolyline: polyline
+            });
+        });
+        return result;
+    }
+
+    function renderRouteAlternatives() {
+        if (!elements.routeAlternativeWrap || !elements.routeAlternativeList) {
+            return;
+        }
+        const alternatives = Array.isArray(state.routeAlternatives) ? state.routeAlternatives : [];
+        if (alternatives.length <= 1) {
+            elements.routeAlternativeWrap.classList.add("hidden");
+            elements.routeAlternativeList.innerHTML = "";
+            return;
+        }
+
+        elements.routeAlternativeWrap.classList.remove("hidden");
+        elements.routeAlternativeList.innerHTML = "";
+        alternatives.forEach(function (route, index) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "route-alt-btn" + (index === state.selectedRouteAlternativeIndex ? " active" : "");
+            btn.dataset.altIndex = String(index);
+            btn.textContent = "Route " + (index + 1);
+            elements.routeAlternativeList.appendChild(btn);
+        });
+    }
+
+    function selectRouteAlternative(index) {
+        const alternatives = Array.isArray(state.routeAlternatives) ? state.routeAlternatives : [];
+        if (index < 0 || index >= alternatives.length) {
+            return;
+        }
+        const selectedRoute = alternatives[index];
+        state.selectedRouteAlternativeIndex = index;
+        clearRouteDrawing();
+        drawRoutePolyline(selectedRoute.routePolyline, state.routeMode);
+        renderRouteSummary(selectedRoute);
+        renderRouteAlternatives();
+        renderRouteEndpointMarkers();
+        fitRouteView();
+        setRouteFeedback("Switched to route " + (index + 1) + ".");
     }
 
     function fitRouteView() {
@@ -963,18 +1922,28 @@
         });
     }
 
-    async function fetchApi(url) {
+    async function fetchApi(url, options) {
         const controller = new AbortController();
         const timeoutId = window.setTimeout(function () {
             controller.abort();
         }, 8000);
 
         try {
+            const requestOptions = options || {};
+            const method = requestOptions.method ? String(requestOptions.method).toUpperCase() : "GET";
+            const headers = {
+                "Accept": "application/json"
+            };
+            let body = undefined;
+            if (requestOptions.body !== undefined && requestOptions.body !== null) {
+                headers["Content-Type"] = "application/json";
+                body = JSON.stringify(requestOptions.body);
+            }
+
             const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Accept": "application/json"
-                },
+                method: method,
+                headers: headers,
+                body: body,
                 signal: controller.signal
             });
 
@@ -982,14 +1951,14 @@
                 throw new Error("Request failed with status " + response.status);
             }
 
-            const body = await response.json();
-            if (!body || typeof body.code !== "number") {
+            const responseBody = await response.json();
+            if (!responseBody || typeof responseBody.code !== "number") {
                 throw new Error("Invalid API response.");
             }
-            if (body.code !== 0) {
-                throw new Error(body.message || "Request failed.");
+            if (responseBody.code !== 0) {
+                throw new Error(responseBody.message || "Request failed.");
             }
-            return body.data;
+            return responseBody.data;
         } catch (error) {
             if (error && error.name === "AbortError") {
                 throw new Error("Request timeout, please try again.");
