@@ -210,17 +210,6 @@
                 </div>
             </section>
 
-<section id="history-entry-card" class="card card-tertiary history-entry-card mode-recents" hidden>
-                <div class="card-head">
-                    <h2>History Records</h2>
-                    <span id="history-count" class="count-badge">0</span>
-                </div>
-                <div class="history-entry-actions">
-                    <button type="button" id="history-toggle-btn" class="btn-secondary">Open History Menu</button>
-                </div>
-                <p id="history-status" class="helper-text">History ready.</p>
-            </section>
-
 <section id="weather-card" class="card card-tertiary weather-card mode-weather" hidden>
                 <h2>Current Weather</h2>
                 <div id="weather-detail-content" class="weather-detail-content">
@@ -262,12 +251,14 @@
 <section id="history-panel" class="card card-tertiary history-panel mode-recents" hidden>
                 <div class="card-head">
                     <h2>Navigation History</h2>
+                    <span id="history-count" class="count-badge">0</span>
                 </div>
                 <div class="history-search-row">
                     <input id="history-search-input" type="text" placeholder="Search history by title or POI">
                     <button type="button" id="history-search-btn" class="btn-primary">Search</button>
                     <button type="button" id="history-reset-btn" class="btn-secondary">Clean</button>
                 </div>
+                <p id="history-status" class="helper-text">History ready.</p>
                 <ul id="history-list" class="history-list"></ul>
                 <div id="history-empty" class="empty-state empty-state-block">
                     <p class="empty-state-title">No recent routes</p>
@@ -297,35 +288,6 @@
                             </div>
                         </section>
                     </div>
-                    <aside id="saved-detail-overlay" class="saved-detail-overlay hidden">
-                        <div class="saved-detail-head">
-                            <h3 id="saved-detail-name" class="saved-detail-name">Saved Place</h3>
-                            <button type="button" id="saved-detail-close-btn" class="saved-detail-close-btn" aria-label="Close saved detail">&times;</button>
-                        </div>
-                        <p id="saved-detail-type" class="saved-detail-type">Type: -</p>
-                        <div class="saved-detail-grid">
-                            <div class="saved-detail-item">
-                                <span class="detail-label">Opening Hours</span>
-                                <span id="saved-detail-opening-hours" class="detail-value">-</span>
-                            </div>
-                            <div class="saved-detail-item">
-                                <span class="detail-label">Coordinates</span>
-                                <span id="saved-detail-coordinates" class="detail-value">-</span>
-                            </div>
-                            <div class="saved-detail-item">
-                                <span class="detail-label">Source</span>
-                                <span id="saved-detail-source" class="detail-value">-</span>
-                            </div>
-                            <div class="saved-detail-item">
-                                <span class="detail-label">Saved At</span>
-                                <span id="saved-detail-saved-at" class="detail-value">-</span>
-                            </div>
-                        </div>
-                        <div class="saved-detail-actions">
-                            <button type="button" id="saved-detail-directions-btn" class="btn-primary">Directions</button>
-                            <button type="button" id="saved-detail-remove-btn" class="btn-secondary">Remove</button>
-                        </div>
-                    </aside>
                 </div>
             </section>
 

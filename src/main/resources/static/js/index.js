@@ -67,7 +67,6 @@
         activeCategory: "",
         routeHistories: [],
         historyKeyword: "",
-        historyPanelOpen: false,
         historyRouteMode: false,
         searchCardsVisible: false,
         pendingMapClickPoi: null,
@@ -172,9 +171,7 @@
         mapMenuSavePlace: document.getElementById("map-menu-save-place"),
         mapCategoryQuickPanel: document.getElementById("map-category-quick-panel"),
         mapCategoryButtons: Array.from(document.querySelectorAll(".map-category-btn")),
-        historyEntryCard: document.getElementById("history-entry-card"),
         historyCount: document.getElementById("history-count"),
-        historyToggleBtn: document.getElementById("history-toggle-btn"),
         historyStatus: document.getElementById("history-status"),
         historyPanel: document.getElementById("history-panel"),
         historySearchInput: document.getElementById("history-search-input"),
@@ -192,16 +189,6 @@
         savedItemTitle: document.getElementById("saved-item-title"),
         savedItemList: document.getElementById("saved-item-list"),
         savedItemEmpty: document.getElementById("saved-item-empty"),
-        savedDetailOverlay: document.getElementById("saved-detail-overlay"),
-        savedDetailName: document.getElementById("saved-detail-name"),
-        savedDetailType: document.getElementById("saved-detail-type"),
-        savedDetailOpeningHours: document.getElementById("saved-detail-opening-hours"),
-        savedDetailCoordinates: document.getElementById("saved-detail-coordinates"),
-        savedDetailSource: document.getElementById("saved-detail-source"),
-        savedDetailSavedAt: document.getElementById("saved-detail-saved-at"),
-        savedDetailDirectionsBtn: document.getElementById("saved-detail-directions-btn"),
-        savedDetailRemoveBtn: document.getElementById("saved-detail-remove-btn"),
-        savedDetailCloseBtn: document.getElementById("saved-detail-close-btn"),
         suggestionCard: document.getElementById("suggestion-card"),
         suggestionTitle: document.getElementById("suggestion-title"),
         suggestionList: document.getElementById("suggestion-list"),
@@ -448,12 +435,6 @@
             });
         }
 
-        if (elements.historyToggleBtn) {
-            elements.historyToggleBtn.addEventListener("click", function () {
-                toggleHistoryPanel();
-            });
-        }
-
         if (elements.historySearchBtn) {
             elements.historySearchBtn.addEventListener("click", function () {
                 runHistorySearch();
@@ -640,27 +621,6 @@
                     return;
                 }
                 setSavedSelectedRecord(recordKey);
-            });
-        }
-
-        if (elements.savedDetailCloseBtn) {
-            elements.savedDetailCloseBtn.addEventListener("click", function () {
-                clearSavedDetailSelection();
-            });
-        }
-
-        if (elements.savedDetailDirectionsBtn) {
-            elements.savedDetailDirectionsBtn.addEventListener("click", function () {
-                openRoutePlannerFromSaved();
-            });
-        }
-
-        if (elements.savedDetailRemoveBtn) {
-            elements.savedDetailRemoveBtn.addEventListener("click", function () {
-                if (!state.savedSelectedRecordKey) {
-                    return;
-                }
-                removeSavedPlace(state.savedSelectedRecordKey);
             });
         }
 
@@ -1266,6 +1226,13 @@
         if (!state.searchContext) {
             return "From search results.";
         }
+        if (state.searchContext.source === "saved") {
+            const savedType = normalizeText(state.searchContext.type, "");
+            if (savedType) {
+                return "From saved places: " + savedType;
+            }
+            return "From saved places.";
+        }
         const total = Number.isFinite(Number(state.searchContext.total))
             ? Number(state.searchContext.total)
             : state.pois.length;
@@ -1454,26 +1421,6 @@
         }
         if (state.uiMode !== DRAWER_MODES.ROUTE_PLANNING) {
             setUiMode(DRAWER_MODES.ROUTE_PLANNING, {force: true});
-        }
-    }
-
-    function toggleHistoryPanel() {
-        if (state.uiMode !== DRAWER_MODES.RECENTS) {
-            return;
-        }
-        setHistoryPanelOpen(!state.historyPanelOpen);
-    }
-
-    function setHistoryPanelOpen(open) {
-        const shouldOpen = open === true;
-        state.historyPanelOpen = shouldOpen;
-        if (elements.historyPanel && state.uiMode === DRAWER_MODES.RECENTS) {
-            setCardVisible(elements.historyPanel, shouldOpen);
-        } else if (elements.historyPanel) {
-            setCardVisible(elements.historyPanel, false);
-        }
-        if (elements.historyToggleBtn) {
-            elements.historyToggleBtn.textContent = shouldOpen ? "Close History Menu" : "Open History Menu";
         }
     }
 
@@ -1854,20 +1801,6 @@
         showTemporaryMapStatus("Saved place removed.");
     }
 
-    function openRoutePlannerFromSaved() {
-        const selected = getSavedRecordByKey(state.savedSelectedRecordKey);
-        if (!selected) {
-            setFeedback("Please choose a saved place first.");
-            return;
-        }
-        const poi = buildPoiFromSavedRecord(selected);
-        if (!poi) {
-            setFeedback("Saved place coordinates are invalid.");
-            return;
-        }
-        setRoutePointFromPoi("end", poi, "Destination set from saved place.");
-    }
-
     function buildSavedRecordFromPoi(poi, source) {
         const lng = Number(poi && poi.longitude);
         const lat = Number(poi && poi.latitude);
@@ -2012,7 +1945,6 @@
             state.savedSelectedRecordKey = "";
             renderSavedTypeList(grouped);
             renderSavedItemList([], "");
-            renderSavedDetailOverlay(null);
             return;
         }
 
@@ -2028,13 +1960,9 @@
         renderSavedItemList(activeGroup.records, activeGroup.typeKey);
 
         const selectedRecord = getSavedRecordByKey(state.savedSelectedRecordKey);
-        if (selectedRecord && selectedRecord.categoryKey === activeGroup.typeKey) {
-            renderSavedDetailOverlay(selectedRecord);
-            return;
+        if (!selectedRecord || selectedRecord.categoryKey !== activeGroup.typeKey) {
+            state.savedSelectedRecordKey = "";
         }
-
-        state.savedSelectedRecordKey = "";
-        renderSavedDetailOverlay(null);
     }
 
     function renderSavedTypeList(groups) {
@@ -2095,50 +2023,6 @@
         });
     }
 
-    function renderSavedDetailOverlay(record) {
-        if (!elements.savedDetailOverlay || !elements.savedLayout) {
-            return;
-        }
-
-        if (!record) {
-            elements.savedDetailOverlay.classList.add("hidden");
-            elements.savedLayout.classList.remove("saved-layout--overlay-open");
-            return;
-        }
-
-        elements.savedLayout.classList.add("saved-layout--overlay-open");
-        elements.savedDetailOverlay.classList.remove("hidden");
-        if (elements.savedDetailName) {
-            elements.savedDetailName.textContent = normalizeText(record.name, "Saved Place");
-        }
-        if (elements.savedDetailType) {
-            const typeLabel = normalizeText(record.categoryKey, SAVED_UNCATEGORIZED_KEY);
-            elements.savedDetailType.textContent = "Type: " + typeLabel;
-        }
-        if (elements.savedDetailOpeningHours) {
-            elements.savedDetailOpeningHours.textContent = normalizeText(record.openingHours, "-");
-        }
-        if (elements.savedDetailCoordinates) {
-            elements.savedDetailCoordinates.textContent = formatSavedCoordinate(record.longitude, record.latitude);
-        }
-        if (elements.savedDetailSource) {
-            elements.savedDetailSource.textContent = normalizeText(record.source, "-");
-        }
-        if (elements.savedDetailSavedAt) {
-            elements.savedDetailSavedAt.textContent = formatWeatherTime(record.savedAt);
-        }
-    }
-
-    function clearSavedDetailSelection() {
-        state.savedSelectedRecordKey = "";
-        renderSavedDetailOverlay(null);
-        if (elements.savedItemList) {
-            elements.savedItemList.querySelectorAll(".saved-item.active").forEach(function (item) {
-                item.classList.remove("active");
-            });
-        }
-    }
-
     function setSavedSelectedRecord(recordKey) {
         const key = normalizeInput(recordKey);
         if (!key) {
@@ -2150,6 +2034,7 @@
         }
         state.savedSelectedRecordKey = key;
         renderSavedView();
+        openSavedRecordInPoiDetail(record);
     }
 
     function setSavedActiveType(typeKey) {
@@ -2160,6 +2045,50 @@
         state.savedActiveType = normalized;
         state.savedSelectedRecordKey = "";
         renderSavedView();
+    }
+
+    function openSavedRecordInPoiDetail(record) {
+        const poi = buildPoiFromSavedRecord(record);
+        if (!poi) {
+            setFeedback("Saved place coordinates are invalid.");
+            return;
+        }
+
+        const lastMode = state.uiBackStack.length > 0
+            ? state.uiBackStack[state.uiBackStack.length - 1]
+            : "";
+        if (state.uiMode === DRAWER_MODES.SAVED && lastMode !== DRAWER_MODES.SAVED) {
+            state.uiBackStack.push(DRAWER_MODES.SAVED);
+            if (state.uiBackStack.length > 20) {
+                state.uiBackStack.shift();
+            }
+        }
+
+        state.searchContext = {
+            source: "saved",
+            keyword: "",
+            type: normalizeText(record.categoryKey, ""),
+            category: "",
+            total: 1
+        };
+        state.selectedPoi = poi;
+        state.selectedPoiId = poi.id;
+        renderDetail(poi);
+        setSearchCardsVisible(true);
+        setUiMode(DRAWER_MODES.POI_DETAIL, {force: true});
+        updateMapMarker(poi);
+
+        const numericPoiId = Number(record.id);
+        if (Number.isFinite(numericPoiId) && numericPoiId > 0) {
+            loadContextSuggestions({
+                sceneType: "poi_detail",
+                poiId: numericPoiId
+            });
+            return;
+        }
+        loadContextSuggestions({
+            sceneType: "poi_detail"
+        });
     }
 
     function groupSavedPlacesByType(records) {
@@ -3777,7 +3706,6 @@
     }
 
     function setUiMode(mode, options) {
-        const previousMode = state.uiMode;
         const normalized = normalizeUiMode(mode);
         const opts = options || {};
         const force = opts.force === true;
@@ -3811,10 +3739,6 @@
         }
 
         state.uiMode = normalized;
-        if (normalized === DRAWER_MODES.SAVED && previousMode !== DRAWER_MODES.SAVED) {
-            // Entering Saved mode should not auto-open floating detail.
-            state.savedSelectedRecordKey = "";
-        }
         if (normalized !== DRAWER_MODES.SEARCH_HOME) {
             state.searchInputFocused = false;
             setSearchSuggestionPanelVisible(false);
@@ -3886,7 +3810,6 @@
         setCardVisible(elements.detailCard, false);
         setCardVisible(elements.routeCard, false);
         setCardVisible(elements.savedCard, false);
-        setCardVisible(elements.historyEntryCard, false);
         setCardVisible(elements.historyPanel, false);
         setCardVisible(elements.weatherCard, false);
         setCardVisible(elements.suggestionCard, false);
@@ -3906,12 +3829,7 @@
                 renderSavedView();
                 break;
             case DRAWER_MODES.RECENTS:
-                setCardVisible(elements.historyEntryCard, true);
-                if (!state.historyPanelOpen) {
-                    setHistoryPanelOpen(true);
-                } else {
-                    setCardVisible(elements.historyPanel, true);
-                }
+                setCardVisible(elements.historyPanel, true);
                 break;
             case DRAWER_MODES.WEATHER:
                 setCardVisible(elements.weatherCard, true);
