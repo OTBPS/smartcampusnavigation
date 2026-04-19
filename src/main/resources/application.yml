@@ -6,8 +6,8 @@ spring:
     name: smart-campus-navigation
   datasource:
     url: jdbc:mysql://localhost:3306/smart_campus_navigation?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:2004123po}
+    username: root
+    password: 2004123po
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       connection-timeout: 5000

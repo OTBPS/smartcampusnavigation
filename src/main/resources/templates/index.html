@@ -9,55 +9,125 @@
 <body>
 <div class="app-shell">
     <header class="topbar">
-        <div class="brand">Smart Campus Navigation</div>
+        <div class="topbar-left">
+            <div class="brand-block">
+                <div class="brand">Smart Campus Navigation</div>
+                <div class="topbar-subtitle">NUIST Campus Map</div>
+            </div>
+            <div id="map-weather-mini" class="map-weather-mini topbar-weather-mini">
+                <span id="map-weather-text" class="map-weather-mini-item">Weather: -</span>
+                <span id="map-weather-temp" class="map-weather-mini-item">Temp: -</span>
+                <span id="map-weather-wind" class="map-weather-mini-item">Wind: -</span>
+            </div>
+        </div>
         <div class="topbar-right">
             <div id="class-peak-status" class="class-peak-status">Class peak status loading...</div>
         </div>
     </header>
 
     <main class="main-layout">
-        <aside id="left-panel" class="left-panel">
-<section class="card">
-                <h2>Search POIs</h2>
-                <form id="poi-search-form" class="search-form">
-                    <label for="search-name">Name keyword</label>
-                    <input id="search-name" name="name" type="text" placeholder="e.g. Library">
+        <div class="left-shell">
+            <nav id="icon-rail" class="icon-rail" aria-label="Primary navigation">
+                <button type="button" class="rail-item active" data-rail-mode="search" aria-current="page">
+                    <svg class="rail-icon" aria-hidden="true">
+                        <use href="/icons/rail-icons.svg#icon-search"></use>
+                    </svg>
+                    <span class="rail-label">Search</span>
+                </button>
+                <button type="button" class="rail-item" data-rail-mode="saved">
+                    <svg class="rail-icon" aria-hidden="true">
+                        <use href="/icons/rail-icons.svg#icon-saved"></use>
+                    </svg>
+                    <span class="rail-label">Saved</span>
+                </button>
+                <button type="button" class="rail-item" data-rail-mode="recents">
+                    <svg class="rail-icon" aria-hidden="true">
+                        <use href="/icons/rail-icons.svg#icon-recents"></use>
+                    </svg>
+                    <span class="rail-label">Recents</span>
+                </button>
+                <button type="button" class="rail-item" data-rail-mode="weather">
+                    <svg class="rail-icon" aria-hidden="true">
+                        <use href="/icons/rail-icons.svg#icon-weather"></use>
+                    </svg>
+                    <span class="rail-label">Weather</span>
+                </button>
+            </nav>
 
-                    <label for="search-type">Type</label>
-                    <select id="search-type" name="type">
+            <aside id="left-panel" class="left-panel drawer-panel" data-ui-mode="search-home">
+                <div id="drawer-header" class="drawer-header">
+                    <button type="button" id="drawer-back-btn" class="drawer-back-btn" hidden>Back</button>
+                    <div class="drawer-heading">
+                        <h2 id="drawer-title" class="drawer-title">Search</h2>
+                        <p id="drawer-subtitle" class="drawer-subtitle">Find places and start navigation.</p>
+                    </div>
+                </div>
+<section id="search-card" class="card card-primary map-search-card mode-search-home">
+                <form id="poi-search-form" class="map-search-form" autocomplete="off">
+                    <div class="map-search-shell">
+                        <span class="map-search-leading-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M10 4.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm0-1.5a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm10.53 16.47a.75.75 0 0 1-1.06 1.06l-3.67-3.67a.75.75 0 1 1 1.06-1.06l3.67 3.67Z"></path>
+                            </svg>
+                        </span>
+                        <input id="search-name" name="name" type="text" placeholder="Search campus places">
+                        <button type="button" id="search-clear-btn" class="map-search-clear-btn" aria-label="Clear search" hidden>
+                            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M6.22 6.22a.75.75 0 0 1 1.06 0L12 10.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L13.06 12l4.72 4.72a.75.75 0 1 1-1.06 1.06L12 13.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L10.94 12 6.22 7.28a.75.75 0 0 1 0-1.06Z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <select id="search-type" name="type" class="sr-only-select" tabindex="-1" aria-hidden="true">
                         <option value="">All types</option>
                     </select>
-
-                    <div class="search-actions">
-                        <button type="submit" class="btn-primary">Search</button>
+                    <div class="search-legacy-actions" hidden>
                         <button type="button" id="reset-btn" class="btn-secondary">Reset</button>
                         <button type="button" id="locate-current-btn" class="btn-secondary locate-current-btn">Locate Current Position</button>
                     </div>
                 </form>
-                <p id="search-feedback" class="helper-text">Ready.</p>
+                <div id="search-suggestion-panel" class="search-suggestion-panel hidden" role="listbox" aria-label="Place suggestions">
+                    <ul id="search-suggestion-list" class="search-suggestion-list"></ul>
+                    <div id="search-suggestion-empty" class="search-suggestion-empty hidden">No matching places.</div>
+                </div>
+                <p id="search-feedback" class="helper-text hidden">Ready.</p>
             </section>
 
-<section id="results-card" class="card results-card card-hidden" hidden>
+<section id="results-card" class="card card-primary results-card card-hidden mode-search-results" hidden>
                 <div class="card-head">
                     <h2>Results</h2>
                     <span id="result-count" class="count-badge">0</span>
                 </div>
                 <ul id="result-list" class="result-list"></ul>
-                <div id="result-empty" class="empty-state">No POIs found. Try another keyword or type.</div>
+                <div id="result-empty" class="empty-state empty-state-block">
+                    <p class="empty-state-title">No results found</p>
+                    <p class="empty-state-body">Try another keyword or type filter.</p>
+                    <p class="empty-state-hint">Tip: switch to "All types" for a broader search.</p>
+                </div>
             </section>
 
-<section id="detail-card" class="card detail-card card-hidden" hidden>
+<section id="detail-card" class="card card-secondary detail-card card-hidden mode-poi-detail" hidden>
                 <h2>POI Details</h2>
+                <p id="detail-context" class="helper-text">From search results.</p>
                 <div id="detail-empty" class="empty-state">Select a POI from the list to view details.</div>
                 <div id="detail-content" class="detail-content hidden">
+                    <div class="detail-hero" role="presentation">
+                        <div class="detail-hero-meta">
+                            <span class="detail-hero-kicker">NUIST Campus Place</span>
+                            <span id="detail-hero-subtitle" class="detail-hero-subtitle">Campus destination details</span>
+                        </div>
+                    </div>
                     <div class="detail-title-row">
                         <h3 id="detail-name"></h3>
                         <span id="detail-enabled" class="status-pill"></span>
                     </div>
+                    <div class="detail-primary-actions">
+                        <button type="button" id="open-route-btn" class="btn-primary">Directions</button>
+                        <button type="button" id="detail-save-btn" class="btn-secondary">Save</button>
+                    </div>
                     <div class="detail-actions">
-                        <button type="button" id="set-start-btn" class="btn-secondary">Set As Start</button>
-                        <button type="button" id="set-end-btn" class="btn-secondary">Set As Destination</button>
-                        <button type="button" id="set-via-btn" class="btn-secondary">Set As Waypoint</button>
+                        <button type="button" id="set-start-btn" class="btn-secondary">Set as Start</button>
+                        <button type="button" id="set-end-btn" class="btn-secondary">Set as End</button>
+                        <button type="button" id="set-via-btn" class="btn-secondary">Set as Waypoint</button>
                     </div>
                     <div class="detail-grid">
                         <div class="detail-item">
@@ -80,25 +150,30 @@
                 </div>
             </section>
 
-<section id="route-card" class="card route-card card-hidden" hidden>
+<section id="route-card" class="card card-secondary route-card card-hidden mode-route-planning" data-route-state="empty" hidden>
                 <h2>Route Planning</h2>
                 <div class="route-selection">
-                    <div class="route-point">
-                        <label class="route-point-label" for="route-mode">Mode</label>
-                        <select id="route-mode" class="route-mode-select">
-                            <option value="walking">Walking</option>
+                    <div class="route-transport-switch" role="group" aria-label="Route mode">
+                        <button type="button" id="route-mode-walking-btn" class="route-mode-chip active" data-route-mode="walking">Walking</button>
+                        <button type="button" id="route-mode-cycling-btn" class="route-mode-chip" data-route-mode="cycling">Cycling</button>
+                        <select id="route-mode" class="route-mode-select sr-only-select" aria-hidden="true" tabindex="-1">
+                            <option value="walking" selected>Walking</option>
                             <option value="cycling">Cycling</option>
                         </select>
                     </div>
-                    <div class="route-point">
+                    <div class="route-point route-point-start">
                         <span class="route-point-label">Start</span>
                         <input id="route-start-name" class="route-point-input" type="text" value="Not selected" readonly>
                     </div>
-                    <div class="route-waypoint-add-wrap">
+                    <div class="route-middle-actions">
+                        <button type="button" id="route-swap-btn" class="btn-secondary route-swap-btn">Swap</button>
                         <button type="button" id="add-waypoint-btn" class="btn-secondary route-waypoint-add-btn">+ Add Waypoint</button>
                     </div>
                     <div id="route-waypoint-list" class="route-waypoint-list"></div>
-                    <div class="route-point">
+                    <div class="route-waypoint-add-wrap">
+                        <span class="route-point-label">Waypoints are optional (max 3)</span>
+                    </div>
+                    <div class="route-point route-point-end">
                         <span class="route-point-label">Destination</span>
                         <input id="route-end-name" class="route-point-input" type="text" value="Not selected" readonly>
                     </div>
@@ -107,19 +182,26 @@
                     <button type="button" id="plan-route-btn" class="btn-primary">Start Route Planning</button>
                     <button type="button" id="clear-route-btn" class="btn-secondary">Clear Route</button>
                 </div>
-                <p id="route-feedback" class="helper-text">Select start and destination POIs first.</p>
+                <p id="route-feedback" class="helper-text route-feedback">Select start and destination POIs first.</p>
+                <div id="route-empty-state" class="empty-state empty-state-block">
+                    <p class="empty-state-title">Route planning is not ready</p>
+                    <p class="empty-state-body">Please set both start and destination points.</p>
+                    <p class="empty-state-hint">Hint: you can set points from POI details, map right-click, or recents.</p>
+                </div>
                 <div id="route-alternative-wrap" class="route-alternative-wrap hidden">
                     <span class="route-summary-label">Route Options</span>
                     <div id="route-alternative-list" class="route-alternative-list"></div>
                 </div>
                 <div id="route-summary" class="route-summary hidden">
-                    <div class="route-summary-item">
-                        <span class="route-summary-label">Distance</span>
-                        <span id="route-distance" class="route-summary-value">-</span>
-                    </div>
-                    <div class="route-summary-item">
-                        <span class="route-summary-label">Duration</span>
-                        <span id="route-duration" class="route-summary-value">-</span>
+                    <div class="route-summary-metrics">
+                        <div class="route-summary-item route-summary-item-metric">
+                            <span class="route-summary-label">Distance</span>
+                            <span id="route-distance" class="route-summary-value">-</span>
+                        </div>
+                        <div class="route-summary-item route-summary-item-metric">
+                            <span class="route-summary-label">Duration</span>
+                            <span id="route-duration" class="route-summary-value">-</span>
+                        </div>
                     </div>
                     <div class="route-steps-wrap">
                         <span class="route-summary-label">Steps</span>
@@ -128,7 +210,7 @@
                 </div>
             </section>
 
-<section class="card history-entry-card">
+<section id="history-entry-card" class="card card-tertiary history-entry-card mode-recents" hidden>
                 <div class="card-head">
                     <h2>History Records</h2>
                     <span id="history-count" class="count-badge">0</span>
@@ -139,13 +221,15 @@
                 <p id="history-status" class="helper-text">History ready.</p>
             </section>
 
-<section id="weather-card" class="card weather-card weather-collapsible-card">
-                <button type="button" id="weather-toggle-btn" class="weather-toggle-btn" aria-expanded="false" aria-controls="weather-detail-content">
-                    <span class="weather-toggle-title">Current Weather</span>
-                    <span id="weather-summary-line" class="weather-summary-line">Loading weather...</span>
-                </button>
-                <div id="weather-detail-content" class="weather-detail-content" hidden>
+<section id="weather-card" class="card card-tertiary weather-card mode-weather" hidden>
+                <h2>Current Weather</h2>
+                <div id="weather-detail-content" class="weather-detail-content">
                     <p id="weather-status" class="helper-text">Loading weather...</p>
+                    <div id="weather-empty-state" class="empty-state empty-state-block hidden">
+                        <p class="empty-state-title">Weather data is unavailable</p>
+                        <p class="empty-state-body">We cannot load current weather right now.</p>
+                        <p class="empty-state-hint">Hint: check network or API configuration, then refresh.</p>
+                    </div>
                     <div class="weather-grid">
                         <div class="weather-item">
                             <span class="detail-label">Weather</span>
@@ -175,7 +259,7 @@
                 </div>
             </section>
 
-<section id="history-panel" class="card history-panel" hidden>
+<section id="history-panel" class="card card-tertiary history-panel mode-recents" hidden>
                 <div class="card-head">
                     <h2>Navigation History</h2>
                 </div>
@@ -185,29 +269,83 @@
                     <button type="button" id="history-reset-btn" class="btn-secondary">Clean</button>
                 </div>
                 <ul id="history-list" class="history-list"></ul>
-                <div id="history-empty" class="empty-state">No history records yet.</div>
+                <div id="history-empty" class="empty-state empty-state-block">
+                    <p class="empty-state-title">No recent routes</p>
+                    <p class="empty-state-body">Your navigation history will appear here.</p>
+                    <p class="empty-state-hint">Hint: complete one route planning to create the first record.</p>
+                </div>
             </section>
 
-<section class="card suggestion-card">
+<section id="saved-card" class="card card-tertiary saved-card mode-saved" hidden>
+                <h2>Saved</h2>
+                <div id="saved-layout" class="saved-layout">
+                    <div class="saved-list-columns">
+                        <section class="saved-type-pane">
+                            <h3 class="saved-pane-title">Types</h3>
+                            <ul id="saved-type-list" class="saved-type-list"></ul>
+                            <div id="saved-type-empty" class="empty-state empty-state-block">
+                                <p class="empty-state-title">No saved types yet</p>
+                                <p class="empty-state-body">Save places from POI details or the map menu.</p>
+                            </div>
+                        </section>
+                        <section class="saved-item-pane">
+                            <h3 id="saved-item-title" class="saved-pane-title">Saved Places</h3>
+                            <ul id="saved-item-list" class="saved-item-list"></ul>
+                            <div id="saved-item-empty" class="empty-state empty-state-block">
+                                <p class="empty-state-title">No saved places in this type</p>
+                                <p class="empty-state-body">Choose another type or save a new place.</p>
+                            </div>
+                        </section>
+                    </div>
+                    <aside id="saved-detail-overlay" class="saved-detail-overlay hidden">
+                        <div class="saved-detail-head">
+                            <h3 id="saved-detail-name" class="saved-detail-name">Saved Place</h3>
+                            <button type="button" id="saved-detail-close-btn" class="saved-detail-close-btn" aria-label="Close saved detail">&times;</button>
+                        </div>
+                        <p id="saved-detail-type" class="saved-detail-type">Type: -</p>
+                        <div class="saved-detail-grid">
+                            <div class="saved-detail-item">
+                                <span class="detail-label">Opening Hours</span>
+                                <span id="saved-detail-opening-hours" class="detail-value">-</span>
+                            </div>
+                            <div class="saved-detail-item">
+                                <span class="detail-label">Coordinates</span>
+                                <span id="saved-detail-coordinates" class="detail-value">-</span>
+                            </div>
+                            <div class="saved-detail-item">
+                                <span class="detail-label">Source</span>
+                                <span id="saved-detail-source" class="detail-value">-</span>
+                            </div>
+                            <div class="saved-detail-item">
+                                <span class="detail-label">Saved At</span>
+                                <span id="saved-detail-saved-at" class="detail-value">-</span>
+                            </div>
+                        </div>
+                        <div class="saved-detail-actions">
+                            <button type="button" id="saved-detail-directions-btn" class="btn-primary">Directions</button>
+                            <button type="button" id="saved-detail-remove-btn" class="btn-secondary">Remove</button>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+<section id="suggestion-card" class="card card-tertiary suggestion-card mode-search-home">
                 <h2 id="suggestion-title">Route Suggestions</h2>
                 <ul id="suggestion-list" class="suggestion-list"></ul>
                 <p id="suggestion-status" class="helper-text">Loading suggestions...</p>
             </section>
-        </aside>
+            </aside>
+        </div>
 
         <section class="map-panel">
             <div id="map-container" class="map-container"></div>
-            <div id="map-weather-mini" class="map-weather-mini">
-                <span id="map-weather-text" class="map-weather-mini-item">Weather: -</span>
-                <span id="map-weather-temp" class="map-weather-mini-item">Temp: -</span>
-                <span id="map-weather-wind" class="map-weather-mini-item">Wind: -</span>
-            </div>
             <div id="map-route-point-menu" class="map-route-point-menu" hidden>
                 <button type="button" id="map-menu-set-start" class="map-route-point-menu-btn">Set as Start</button>
                 <button type="button" id="map-menu-set-end" class="map-route-point-menu-btn">Set as End</button>
                 <button type="button" id="map-menu-set-via" class="map-route-point-menu-btn">Set as Waypoint</button>
+                <button type="button" id="map-menu-save-place" class="map-route-point-menu-btn">Save place</button>
             </div>
-            <div id="map-category-quick-panel" class="map-category-quick-panel">
+            <div id="map-category-quick-panel" class="map-category-quick-panel map-overlay-card">
                 <button type="button" class="map-category-btn" data-category="administrative">Administrative</button>
                 <button type="button" class="map-category-btn" data-category="academic">Academic</button>
                 <button type="button" class="map-category-btn" data-category="dining">Dining</button>
