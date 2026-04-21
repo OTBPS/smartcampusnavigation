@@ -1,9 +1,10 @@
 (function () {
-    const NUIST_CAMPUS_CENTER = [118.715422, 32.194426];
+const NUIST_CAMPUS_CENTER = [118.716051, 32.202484];
     const WEATHER_REFRESH_INTERVAL_MS = 60 * 1000;
-    const MAX_ROUTE_WAYPOINTS = 3;
+const MAX_ROUTE_WAYPOINTS = 5;
     const SAVED_STORAGE_KEY = "smartCampus.savedPlaces.v1";
     const SAVED_UNCATEGORIZED_KEY = "Uncategorized";
+    const MAX_SAVED_PLACE_NAME_LENGTH = 80;
     const CLASS_PERIOD_STARTS = [
         { period: 1, minuteOfDay: 8 * 60 },
         { period: 2, minuteOfDay: 10 * 60 + 10 },
@@ -64,6 +65,10 @@
         routeAlternatives: [],
         selectedRouteAlternativeIndex: 0,
         routePanelState: "empty",
+        routeAdvice: null,
+        routePlanRequestId: 0,
+        pendingRecommendedApply: false,
+        recommendedApplyBackup: null,
         activeCategory: "",
         routeHistories: [],
         historyKeyword: "",
@@ -73,6 +78,7 @@
         weatherRefreshTimer: null,
         weatherLoading: false,
         mapStatusTimer: null,
+        mapToastTimer: null,
         savedPlaces: [],
         savedActiveType: "",
         savedSelectedRecordKey: "",
@@ -104,6 +110,7 @@
         searchName: document.getElementById("search-name"),
         searchType: document.getElementById("search-type"),
         searchClearBtn: document.getElementById("search-clear-btn"),
+        searchOpenRouteBtn: document.getElementById("search-open-route-btn"),
         searchSuggestionPanel: document.getElementById("search-suggestion-panel"),
         searchSuggestionList: document.getElementById("search-suggestion-list"),
         searchSuggestionEmpty: document.getElementById("search-suggestion-empty"),
@@ -133,17 +140,25 @@
         locateCurrentBtn: document.getElementById("locate-current-btn"),
         routeStartName: document.getElementById("route-start-name"),
         routeEndName: document.getElementById("route-end-name"),
+        routeStartClearBtn: document.getElementById("route-start-clear-btn"),
+        routeEndClearBtn: document.getElementById("route-end-clear-btn"),
         routeWaypointList: document.getElementById("route-waypoint-list"),
         addWaypointBtn: document.getElementById("add-waypoint-btn"),
         routeSwapBtn: document.getElementById("route-swap-btn"),
         routeMode: document.getElementById("route-mode"),
         routeModeWalkingBtn: document.getElementById("route-mode-walking-btn"),
         routeModeCyclingBtn: document.getElementById("route-mode-cycling-btn"),
+        routeUseCurrentStartBtn: document.getElementById("route-use-current-start-btn"),
         planRouteBtn: document.getElementById("plan-route-btn"),
         clearRouteBtn: document.getElementById("clear-route-btn"),
         routeFeedback: document.getElementById("route-feedback"),
         routeAlternativeWrap: document.getElementById("route-alternative-wrap"),
         routeAlternativeList: document.getElementById("route-alternative-list"),
+        routeAdviceBlock: document.getElementById("route-advice-block"),
+        routeAdviceRisk: document.getElementById("route-advice-risk"),
+        routeAdviceText: document.getElementById("route-advice-text"),
+        routeAdviceWaypoint: document.getElementById("route-advice-waypoint"),
+        routeAdviceApplyBtn: document.getElementById("route-advice-apply-btn"),
         routeSummary: document.getElementById("route-summary"),
         routeDistance: document.getElementById("route-distance"),
         routeDuration: document.getElementById("route-duration"),
@@ -194,6 +209,7 @@
         suggestionList: document.getElementById("suggestion-list"),
         suggestionStatus: document.getElementById("suggestion-status"),
         classPeakStatus: document.getElementById("class-peak-status"),
+        mapToast: document.getElementById("map-toast"),
         mapStatus: document.getElementById("map-status")
     };
 
@@ -213,7 +229,8 @@
         loadContextSuggestions({
             sceneType: "home"
         });
-        initMap();
+        await initMap();
+        requestCurrentLocationOnEntry();
     }
 
     function bindEvents() {
@@ -298,6 +315,12 @@
             });
         }
 
+        if (elements.searchOpenRouteBtn) {
+            elements.searchOpenRouteBtn.addEventListener("click", function () {
+                ensureRoutePlanningCardVisible({pushSearchFlow: true});
+            });
+        }
+
         if (elements.resetBtn) {
             elements.resetBtn.addEventListener("click", function () {
                 setUiMode(DRAWER_MODES.SEARCH_HOME, {resetBackStack: true});
@@ -372,7 +395,7 @@
                     return;
                 }
                 const saved = savePlaceToSavedList(state.selectedPoi, "poi-detail");
-                showTemporaryMapStatus("Saved \"" + saved.name + "\".");
+                showMapToast("Saved \"" + saved.name + "\".");
                 refreshDetailSaveButtonState();
             });
         }
@@ -405,9 +428,27 @@
             });
         }
 
+        if (elements.routeUseCurrentStartBtn) {
+            elements.routeUseCurrentStartBtn.addEventListener("click", function () {
+                useCurrentLocationAsRouteStart();
+            });
+        }
+
         if (elements.routeSwapBtn) {
             elements.routeSwapBtn.addEventListener("click", function () {
                 swapRouteEndpoints();
+            });
+        }
+
+        if (elements.routeStartClearBtn) {
+            elements.routeStartClearBtn.addEventListener("click", function () {
+                clearRoutePoint("start");
+            });
+        }
+
+        if (elements.routeEndClearBtn) {
+            elements.routeEndClearBtn.addEventListener("click", function () {
+                clearRoutePoint("end");
             });
         }
 
@@ -519,6 +560,12 @@
             });
         }
 
+        if (elements.routeAdviceApplyBtn) {
+            elements.routeAdviceApplyBtn.addEventListener("click", function () {
+                applyRecommendedWaypoint();
+            });
+        }
+
         if (elements.mapMenuSetStart) {
             elements.mapMenuSetStart.addEventListener("click", function (event) {
                 event.preventDefault();
@@ -608,6 +655,10 @@
                     }
                     if (action === "remove") {
                         removeSavedPlace(recordKey);
+                        return;
+                    }
+                    if (action === "rename") {
+                        renameSavedPlace(recordKey);
                         return;
                     }
                 }
@@ -1309,7 +1360,7 @@
             await loadAmapScript(key);
 
             state.map = new AMap.Map("map-container", {
-                zoom: 16,
+                zoom: 17,
                 center: NUIST_CAMPUS_CENTER,
                 resizeEnable: true
             });
@@ -1611,7 +1662,9 @@
             return;
         }
 
+        invalidateRoutePlanRequests();
         clearRouteDrawing();
+        clearRouteAdvice();
         state.routeStartPoi = startPoi;
         state.routeEndPoi = endPoi;
         state.routeViaPois = [];
@@ -1798,7 +1851,54 @@
             renderSavedView();
         }
         refreshDetailSaveButtonState();
-        showTemporaryMapStatus("Saved place removed.");
+        showMapToast("Saved place removed.");
+    }
+
+    function renameSavedPlace(recordKey) {
+        const key = normalizeInput(recordKey);
+        if (!key) {
+            return;
+        }
+
+        const index = state.savedPlaces.findIndex(function (record) {
+            return record.recordKey === key;
+        });
+        if (index < 0) {
+            return;
+        }
+
+        const target = state.savedPlaces[index];
+        if (!target || normalizeText(target.categoryKey, "") !== SAVED_UNCATEGORIZED_KEY) {
+            return;
+        }
+
+        const renamedRaw = window.prompt("Rename saved place:", normalizeText(target.name, "Saved Place"));
+        if (renamedRaw === null) {
+            return;
+        }
+
+        const renamed = normalizeText(renamedRaw, "");
+        if (!renamed) {
+            window.alert("Name cannot be empty.");
+            return;
+        }
+        if (renamed.length > MAX_SAVED_PLACE_NAME_LENGTH) {
+            window.alert("Name is too long. Maximum 80 characters.");
+            return;
+        }
+        if (renamed === normalizeText(target.name, "")) {
+            return;
+        }
+
+        const updated = Object.assign({}, target, {name: renamed});
+        state.savedPlaces.splice(index, 1, updated);
+        persistSavedPlaces();
+
+        if (state.uiMode === DRAWER_MODES.SAVED) {
+            renderSavedView();
+        }
+        syncSavedRenameToOpenedDetail(updated);
+        showMapToast("Saved place renamed.");
     }
 
     function buildSavedRecordFromPoi(poi, source) {
@@ -1993,6 +2093,7 @@
         }
         elements.savedItemList.innerHTML = "";
         const normalizedType = normalizeText(typeKey, "Saved Places");
+        const canRename = normalizedType === SAVED_UNCATEGORIZED_KEY;
         elements.savedItemTitle.textContent = normalizedType === SAVED_UNCATEGORIZED_KEY
             ? "Saved Places | Uncategorized"
             : "Saved Places | " + normalizedType;
@@ -2017,6 +2118,9 @@
                 "</div>" +
                 "<div class=\"saved-item-actions\">" +
                 "<button type=\"button\" class=\"saved-item-action\" data-saved-action=\"select\" data-saved-key=\"" + escapeHtml(record.recordKey) + "\">View</button>" +
+                (canRename
+                    ? ("<button type=\"button\" class=\"saved-item-action\" data-saved-action=\"rename\" data-saved-key=\"" + escapeHtml(record.recordKey) + "\">Edit</button>")
+                    : "") +
                 "<button type=\"button\" class=\"saved-item-action danger\" data-saved-action=\"remove\" data-saved-key=\"" + escapeHtml(record.recordKey) + "\">Remove</button>" +
                 "</div>";
             elements.savedItemList.appendChild(item);
@@ -2089,6 +2193,49 @@
         loadContextSuggestions({
             sceneType: "poi_detail"
         });
+    }
+
+    function syncSavedRenameToOpenedDetail(record) {
+        if (!record || !state.selectedPoi || !state.searchContext || state.searchContext.source !== "saved") {
+            return;
+        }
+
+        const selectedKey = normalizeInput(state.savedSelectedRecordKey);
+        if (selectedKey && selectedKey !== record.recordKey) {
+            return;
+        }
+
+        const currentPoiId = normalizeText(state.selectedPoi.id, "");
+        const recordId = normalizeText(record.id, "");
+        const savedPseudoId = "__saved__" + record.recordKey;
+
+        let matched = false;
+        if (currentPoiId && recordId && currentPoiId === recordId) {
+            matched = true;
+        } else if (currentPoiId === savedPseudoId) {
+            matched = true;
+        } else {
+            const selectedLng = Number(state.selectedPoi.longitude);
+            const selectedLat = Number(state.selectedPoi.latitude);
+            const recordLng = Number(record.longitude);
+            const recordLat = Number(record.latitude);
+            if (Number.isFinite(selectedLng)
+                && Number.isFinite(selectedLat)
+                && Number.isFinite(recordLng)
+                && Number.isFinite(recordLat)) {
+                matched = Math.abs(selectedLng - recordLng) < 0.000001
+                    && Math.abs(selectedLat - recordLat) < 0.000001;
+            }
+        }
+
+        if (!matched) {
+            return;
+        }
+
+        state.selectedPoi = Object.assign({}, state.selectedPoi, {
+            name: record.name
+        });
+        renderDetail(state.selectedPoi);
     }
 
     function groupSavedPlacesByType(records) {
@@ -2403,10 +2550,43 @@
     function openRoutePlannerFromDetail() {
         if (!state.selectedPoi) {
             ensureRoutePlanningCardVisible({pushSearchFlow: true});
-            setRouteFeedback("Select a POI to prefill destination, or set route points manually.", "info");
+            setRouteFeedback("Select a POI to set destination, or set route points manually.", "info");
             return;
         }
-        setRoutePointFromPoi("end", state.selectedPoi, "Destination set from POI details.");
+        ensureRoutePlanningCardVisible({pushSearchFlow: true});
+
+        state.routeEndPoi = state.selectedPoi;
+
+        const startConflict = isSamePoiOrCoordinate(state.routeStartPoi, state.routeEndPoi);
+        if (startConflict) {
+            state.routeStartPoi = null;
+            clearRouteDrawing();
+            state.routeAlternatives = [];
+            state.selectedRouteAlternativeIndex = 0;
+        }
+
+        state.routeViaPois = state.routeViaPois.map(function (item) {
+            if (!item) {
+                return null;
+            }
+            if (isSamePoiOrCoordinate(item, state.routeStartPoi) || isSamePoiOrCoordinate(item, state.routeEndPoi)) {
+                return null;
+            }
+            return item;
+        });
+
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
+        renderRouteSelection();
+        renderRouteEndpointMarkers();
+
+        if (!state.routeStartPoi) {
+            setRouteFeedback("Destination set from POI details. Please choose a start point.", "info");
+            return;
+        }
+
+        setRouteFeedback("Destination set from POI details.", "info");
+        tryAutoReplanRoute();
     }
 
     function setRouteMode(mode, fromUserAction) {
@@ -2416,6 +2596,8 @@
             elements.routeMode.value = normalizedMode;
         }
         syncRouteModeButtons();
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
         if (fromUserAction) {
             setRouteFeedback(capitalizeRouteMode(normalizedMode) + " mode selected.", "info");
             tryAutoReplanRoute();
@@ -2453,6 +2635,8 @@
             return item;
         });
 
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
         renderRouteSelection();
         renderRouteEndpointMarkers();
         setRouteFeedback("Start and destination swapped.", "info");
@@ -2520,11 +2704,44 @@
             return false;
         }
 
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
         renderRouteSelection();
         renderRouteEndpointMarkers();
         setRouteFeedback(feedbackMessage || "Route point updated.", "info");
         tryAutoReplanRoute();
         return true;
+    }
+
+    function clearRoutePoint(type) {
+        let feedbackMessage = "";
+        if (type === "start") {
+            if (!state.routeStartPoi) {
+                setRouteFeedback("Start is already empty.", "info");
+                return;
+            }
+            state.routeStartPoi = null;
+            feedbackMessage = "Start point cleared.";
+        } else if (type === "end") {
+            if (!state.routeEndPoi) {
+                setRouteFeedback("Destination is already empty.", "info");
+                return;
+            }
+            state.routeEndPoi = null;
+            feedbackMessage = "Destination point cleared.";
+        } else {
+            return;
+        }
+
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
+        clearRouteDrawing();
+        state.routeAlternatives = [];
+        state.selectedRouteAlternativeIndex = 0;
+        renderRouteSelection();
+        renderRouteEndpointMarkers();
+        setRouteFeedback(feedbackMessage, "info");
+        refreshSuggestionsAfterRouteClear();
     }
 
     function addEmptyWaypointSlot() {
@@ -2534,6 +2751,8 @@
             return;
         }
         state.routeViaPois.push(null);
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
         renderRouteSelection();
         setRouteFeedback("Waypoint slot added.", "info");
     }
@@ -2544,6 +2763,8 @@
             return;
         }
         state.routeViaPois.splice(index, 1);
+        clearRouteAdvice();
+        invalidateRoutePlanRequests();
         renderRouteSelection();
         renderRouteEndpointMarkers();
         setRouteFeedback("Waypoint removed.", "info");
@@ -2622,7 +2843,7 @@
             return;
         }
         const saved = savePlaceToSavedList(mapPoi, "map-right-click");
-        showTemporaryMapStatus("Saved \"" + saved.name + "\".");
+        showMapToast("Saved \"" + saved.name + "\".");
     }
 
     function showMapRoutePointMenu(event) {
@@ -2768,15 +2989,21 @@
 
     async function planWalkingRoute() {
         if (!state.routeStartPoi || !state.routeEndPoi) {
+            clearRouteAdvice();
             setRouteFeedback("Please set both start and destination.", "error");
             return;
         }
         state.routeMode = normalizeRouteMode(elements.routeMode ? elements.routeMode.value : state.routeMode);
+        const requestId = invalidateRoutePlanRequests({
+            keepRecommendedApplyContext: state.pendingRecommendedApply
+        });
+        clearRouteAdvice();
         clearRouteDrawing();
 
         const startPosition = getPoiPosition(state.routeStartPoi);
         const endPosition = getPoiPosition(state.routeEndPoi);
         if (!startPosition || !endPosition) {
+            clearRouteAdvice();
             setRouteFeedback("Start or destination has invalid coordinates.", "error");
             return;
         }
@@ -2786,6 +3013,7 @@
             const viaPoi = viaPois[i];
             const viaPosition = getPoiPosition(viaPoi);
             if (!viaPosition) {
+                clearRouteAdvice();
                 setRouteFeedback("Waypoint has invalid coordinates.", "error");
                 return;
             }
@@ -2793,6 +3021,7 @@
         }
 
         if (state.routeStartPoi.id === state.routeEndPoi.id) {
+            clearRouteAdvice();
             setRouteFeedback("Please choose two different POIs.", "error");
             return;
         }
@@ -2802,6 +3031,14 @@
         params.set("originLat", String(startPosition[1]));
         params.set("destinationLng", String(endPosition[0]));
         params.set("destinationLat", String(endPosition[1]));
+        const originType = readRouteEndpointType(state.routeStartPoi);
+        const destinationType = readRouteEndpointType(state.routeEndPoi);
+        if (originType) {
+            params.set("originType", originType);
+        }
+        if (destinationType) {
+            params.set("destinationType", destinationType);
+        }
         viaPositions.forEach(function (viaPosition) {
             params.append("viaLng", String(viaPosition[0]));
             params.append("viaLat", String(viaPosition[1]));
@@ -2813,8 +3050,15 @@
         try {
             setRouteFeedback("Planning " + state.routeMode + " route...", "info");
             const routeData = await fetchApi(routeEndpoint + "?" + params.toString());
+            if (requestId !== state.routePlanRequestId) {
+                return;
+            }
             const alternatives = normalizeRouteAlternatives(routeData);
             if (alternatives.length === 0) {
+                if (handleRecommendedApplyFailureFallback("No " + state.routeMode + " route alternatives returned.", requestId)) {
+                    return;
+                }
+                clearRouteAdvice();
                 setRouteFeedback("No " + state.routeMode + " route alternatives returned.", "error");
                 refreshSuggestionsAfterRouteClear();
                 return;
@@ -2828,6 +3072,7 @@
             renderRouteEndpointMarkers();
             renderRouteSummary(selectedRoute);
             renderRouteAlternatives();
+            renderRouteAdviceFromRouteData(routeData);
             fitRouteView();
             let routeMessage = capitalizeRouteMode(state.routeMode) + " route planned.";
             try {
@@ -2837,6 +3082,7 @@
                 routeMessage += " Route save failed, route remains available.";
             }
             setRouteFeedback(routeMessage, "success");
+            clearRecommendedApplyContext();
             loadContextSuggestions({
                 sceneType: "route_planning",
                 poiId: state.routeEndPoi ? state.routeEndPoi.id : null,
@@ -2844,6 +3090,13 @@
                 routeDuration: selectedRoute.duration
             });
         } catch (error) {
+            if (requestId !== state.routePlanRequestId) {
+                return;
+            }
+            if (handleRecommendedApplyFailureFallback(error.message, requestId)) {
+                return;
+            }
+            clearRouteAdvice();
             setRouteFeedback(error.message || (capitalizeRouteMode(state.routeMode) + " route planning failed."), "error");
             refreshSuggestionsAfterRouteClear();
         }
@@ -2851,7 +3104,9 @@
 
     function clearRouteAll(silent) {
         const isSilent = silent === true;
+        invalidateRoutePlanRequests();
         clearRouteDrawing();
+        clearRouteAdvice();
         clearRouteEndpointMarkers();
         state.routeStartPoi = null;
         state.routeEndPoi = null;
@@ -2964,8 +3219,14 @@
         if (elements.routeStartName) {
             elements.routeStartName.value = state.routeStartPoi ? state.routeStartPoi.name : "Not selected";
         }
+        if (elements.routeStartClearBtn) {
+            elements.routeStartClearBtn.disabled = !state.routeStartPoi;
+        }
         if (elements.routeEndName) {
             elements.routeEndName.value = state.routeEndPoi ? state.routeEndPoi.name : "Not selected";
+        }
+        if (elements.routeEndClearBtn) {
+            elements.routeEndClearBtn.disabled = !state.routeEndPoi;
         }
         renderWaypointRows();
         updateRoutePlanningEmptyState();
@@ -3028,7 +3289,7 @@
                 : "Route points are partially selected. Complete both start and destination.";
         }
         if (hintElement) {
-            hintElement.textContent = "Hint: add up to 3 waypoints for multi-stop planning.";
+            hintElement.textContent = "Hint: add up to 5 waypoints for multi-stop planning.";
         }
         elements.routeEmptyState.classList.remove("hidden");
     }
@@ -3055,7 +3316,7 @@
         if (elements.addWaypointBtn) {
             elements.addWaypointBtn.disabled = slots.length >= MAX_ROUTE_WAYPOINTS;
             elements.addWaypointBtn.textContent = slots.length >= MAX_ROUTE_WAYPOINTS
-                ? "Max 3 waypoints"
+                ? "Max 5 waypoints"
                 : "+ Add Waypoint";
         }
     }
@@ -3160,6 +3421,285 @@
         renderRouteEndpointMarkers();
         fitRouteView();
         setRouteFeedback("Switched to route " + (index + 1) + ".", "info");
+    }
+
+    function invalidateRoutePlanRequests(options) {
+        const keepRecommendedApplyContext = !!(options && options.keepRecommendedApplyContext);
+        if (!keepRecommendedApplyContext) {
+            clearRecommendedApplyContext();
+        }
+        state.routePlanRequestId += 1;
+        return state.routePlanRequestId;
+    }
+
+    function readRouteEndpointType(poi) {
+        if (!poi || typeof poi.type !== "string") {
+            return "";
+        }
+        return normalizeInput(poi.type);
+    }
+
+    function renderRouteAdviceFromRouteData(routeData) {
+        const advice = buildRouteAdviceFromResponse(routeData);
+        renderRouteAdvice(advice);
+    }
+
+    function buildRouteAdviceFromResponse(routeData) {
+        if (!routeData || typeof routeData !== "object") {
+            return null;
+        }
+        const adviceText = normalizeText(routeData.smartTravelAdvice, "");
+        if (!adviceText) {
+            return null;
+        }
+        const waypointName = normalizeText(routeData.recommendedWaypointName, "");
+        const waypointLng = Number(routeData.recommendedWaypointLng);
+        const waypointLat = Number(routeData.recommendedWaypointLat);
+        const hasWaypointCoordinate = Number.isFinite(waypointLng) && Number.isFinite(waypointLat);
+        return {
+            weatherRiskLevel: normalizeText(routeData.weatherRiskLevel, "LOW").toUpperCase(),
+            weatherRiskType: normalizeText(routeData.weatherRiskType, ""),
+            smartTravelAdvice: adviceText,
+            recommendedWaypointName: waypointName,
+            recommendedStrategyTag: normalizeText(routeData.recommendedStrategyTag, ""),
+            recommendedWaypointLng: hasWaypointCoordinate ? waypointLng : null,
+            recommendedWaypointLat: hasWaypointCoordinate ? waypointLat : null
+        };
+    }
+
+    function clearRouteAdvice() {
+        state.routeAdvice = null;
+        if (elements.routeAdviceBlock) {
+            elements.routeAdviceBlock.classList.add("hidden");
+        }
+        if (elements.routeAdviceRisk) {
+            elements.routeAdviceRisk.textContent = "-";
+            elements.routeAdviceRisk.classList.remove("risk-high", "risk-medium", "risk-low");
+        }
+        if (elements.routeAdviceText) {
+            elements.routeAdviceText.textContent = "-";
+        }
+        if (elements.routeAdviceWaypoint) {
+            elements.routeAdviceWaypoint.textContent = "-";
+            elements.routeAdviceWaypoint.classList.add("hidden");
+        }
+        if (elements.routeAdviceApplyBtn) {
+            elements.routeAdviceApplyBtn.classList.add("hidden");
+            elements.routeAdviceApplyBtn.disabled = false;
+            delete elements.routeAdviceApplyBtn.dataset.recommendedLng;
+            delete elements.routeAdviceApplyBtn.dataset.recommendedLat;
+            delete elements.routeAdviceApplyBtn.dataset.recommendedName;
+        }
+    }
+
+    function renderRouteAdvice(advice) {
+        if (!elements.routeAdviceBlock) {
+            return;
+        }
+        if (!advice || !normalizeText(advice.smartTravelAdvice, "")) {
+            clearRouteAdvice();
+            return;
+        }
+
+        state.routeAdvice = advice;
+        elements.routeAdviceBlock.classList.remove("hidden");
+
+        const riskLevel = normalizeText(advice.weatherRiskLevel, "LOW").toUpperCase();
+        const riskType = normalizeText(advice.weatherRiskType, "");
+        const badgeText = riskType ? (riskLevel + " | " + riskType.replace(/_/g, " ")) : riskLevel;
+        if (elements.routeAdviceRisk) {
+            elements.routeAdviceRisk.textContent = badgeText;
+            elements.routeAdviceRisk.classList.remove("risk-high", "risk-medium", "risk-low");
+            if (riskLevel === "HIGH") {
+                elements.routeAdviceRisk.classList.add("risk-high");
+            } else if (riskLevel === "MEDIUM") {
+                elements.routeAdviceRisk.classList.add("risk-medium");
+            } else {
+                elements.routeAdviceRisk.classList.add("risk-low");
+            }
+        }
+
+        if (elements.routeAdviceText) {
+            elements.routeAdviceText.textContent = advice.smartTravelAdvice;
+        }
+
+        const waypointName = normalizeText(advice.recommendedWaypointName, "");
+        const hasWaypointCoord = Number.isFinite(Number(advice.recommendedWaypointLng))
+            && Number.isFinite(Number(advice.recommendedWaypointLat));
+        if (elements.routeAdviceWaypoint) {
+            if (waypointName) {
+                elements.routeAdviceWaypoint.textContent = "Recommended waypoint: " + waypointName;
+                elements.routeAdviceWaypoint.classList.remove("hidden");
+            } else {
+                elements.routeAdviceWaypoint.textContent = "-";
+                elements.routeAdviceWaypoint.classList.add("hidden");
+            }
+        }
+
+        if (!elements.routeAdviceApplyBtn) {
+            return;
+        }
+        if (!hasWaypointCoord) {
+            elements.routeAdviceApplyBtn.classList.add("hidden");
+            return;
+        }
+
+        const rejectMessage = getRecommendedWaypointApplyRejectReason({
+            name: waypointName || "Recommended waypoint",
+            longitude: Number(advice.recommendedWaypointLng),
+            latitude: Number(advice.recommendedWaypointLat),
+            id: "__recommended_waypoint__" + String(advice.recommendedWaypointLng) + "_" + String(advice.recommendedWaypointLat),
+            type: "recommended_waypoint",
+            description: "Weather-aware recommended waypoint",
+            openingHours: "-",
+            enabled: true
+        });
+        if (rejectMessage) {
+            elements.routeAdviceApplyBtn.classList.add("hidden");
+            return;
+        }
+
+        elements.routeAdviceApplyBtn.classList.remove("hidden");
+        elements.routeAdviceApplyBtn.dataset.recommendedLng = String(advice.recommendedWaypointLng);
+        elements.routeAdviceApplyBtn.dataset.recommendedLat = String(advice.recommendedWaypointLat);
+        elements.routeAdviceApplyBtn.dataset.recommendedName = waypointName || "Recommended waypoint";
+    }
+
+    function getRecommendedWaypointApplyRejectReason(poi) {
+        if (!poi) {
+            return "Recommended waypoint is unavailable.";
+        }
+        const position = getPoiPosition(poi);
+        if (!position) {
+            return "Recommended waypoint has invalid coordinates.";
+        }
+        if (isSamePoiOrCoordinate(poi, state.routeStartPoi)) {
+            return "Recommended waypoint is the same as the start point.";
+        }
+        if (isSamePoiOrCoordinate(poi, state.routeEndPoi)) {
+            return "Recommended waypoint is the same as the destination.";
+        }
+        if (state.routeViaPois.some(function (item) { return item && isSamePoiOrCoordinate(item, poi); })) {
+            return "Recommended waypoint already exists in current route.";
+        }
+        const emptyIndex = findFirstEmptyWaypointIndex();
+        const canAppend = state.routeViaPois.length < MAX_ROUTE_WAYPOINTS;
+        if (emptyIndex < 0 && !canAppend) {
+            return "Waypoint limit reached (max " + MAX_ROUTE_WAYPOINTS + ").";
+        }
+        return "";
+    }
+
+    function applyRecommendedWaypoint() {
+        const advice = state.routeAdvice;
+        if (!advice) {
+            return;
+        }
+        const waypoint = {
+            id: "__recommended_waypoint__" + String(advice.recommendedWaypointLng) + "_" + String(advice.recommendedWaypointLat),
+            name: normalizeText(advice.recommendedWaypointName, "Recommended waypoint"),
+            type: "recommended_waypoint",
+            longitude: Number(advice.recommendedWaypointLng),
+            latitude: Number(advice.recommendedWaypointLat),
+            description: "Weather-aware recommended waypoint",
+            openingHours: "-",
+            enabled: true
+        };
+        const rejectMessage = getRecommendedWaypointApplyRejectReason(waypoint);
+        if (rejectMessage) {
+            window.alert(rejectMessage);
+            renderRouteAdvice(advice);
+            return;
+        }
+
+        state.recommendedApplyBackup = captureCurrentRouteSnapshot();
+        state.pendingRecommendedApply = true;
+
+        const firstEmptyIndex = findFirstEmptyWaypointIndex();
+        if (firstEmptyIndex >= 0) {
+            state.routeViaPois[firstEmptyIndex] = waypoint;
+        } else {
+            state.routeViaPois.push(waypoint);
+        }
+
+        clearRouteAdvice();
+        renderRouteSelection();
+        renderRouteEndpointMarkers();
+        setRouteFeedback("Recommended waypoint applied. Replanning route...", "info");
+        planWalkingRoute();
+    }
+
+    function captureCurrentRouteSnapshot() {
+        return {
+            routeMode: state.routeMode,
+            routeStartPoi: cloneJsonValue(state.routeStartPoi),
+            routeEndPoi: cloneJsonValue(state.routeEndPoi),
+            routeViaPois: cloneJsonValue(state.routeViaPois),
+            routeAlternatives: cloneJsonValue(state.routeAlternatives),
+            selectedRouteAlternativeIndex: state.selectedRouteAlternativeIndex,
+            routeAdvice: cloneJsonValue(state.routeAdvice)
+        };
+    }
+
+    function restoreRouteSnapshot(snapshot) {
+        if (!snapshot) {
+            return false;
+        }
+        state.routeMode = normalizeRouteMode(snapshot.routeMode);
+        state.routeStartPoi = cloneJsonValue(snapshot.routeStartPoi);
+        state.routeEndPoi = cloneJsonValue(snapshot.routeEndPoi);
+        state.routeViaPois = Array.isArray(snapshot.routeViaPois) ? cloneJsonValue(snapshot.routeViaPois) : [];
+        state.routeAlternatives = Array.isArray(snapshot.routeAlternatives) ? cloneJsonValue(snapshot.routeAlternatives) : [];
+        state.selectedRouteAlternativeIndex = Number.isInteger(snapshot.selectedRouteAlternativeIndex)
+            ? snapshot.selectedRouteAlternativeIndex
+            : 0;
+
+        renderRouteSelection();
+        clearRouteDrawing();
+        const alternatives = Array.isArray(state.routeAlternatives) ? state.routeAlternatives : [];
+        const selected = alternatives[state.selectedRouteAlternativeIndex] || alternatives[0] || null;
+        if (selected && Array.isArray(selected.routePolyline) && selected.routePolyline.length > 0) {
+            drawRoutePolyline(selected.routePolyline, state.routeMode);
+            renderRouteSummary(selected);
+        } else {
+            hideRouteSummary();
+        }
+        renderRouteAlternatives();
+        renderRouteEndpointMarkers();
+        fitRouteView();
+
+        if (snapshot.routeAdvice) {
+            renderRouteAdvice(cloneJsonValue(snapshot.routeAdvice));
+        } else {
+            clearRouteAdvice();
+        }
+        return true;
+    }
+
+    function clearRecommendedApplyContext() {
+        state.pendingRecommendedApply = false;
+        state.recommendedApplyBackup = null;
+    }
+
+    function handleRecommendedApplyFailureFallback(rawMessage, requestId) {
+        if (requestId !== state.routePlanRequestId || !state.pendingRecommendedApply) {
+            return false;
+        }
+        const snapshot = state.recommendedApplyBackup;
+        clearRecommendedApplyContext();
+        if (!snapshot) {
+            return false;
+        }
+        restoreRouteSnapshot(snapshot);
+        setRouteFeedback("Covered waypoint is not routable right now. Fallback to the normal route.", "error");
+        return true;
+    }
+
+    function cloneJsonValue(value) {
+        if (value === null || value === undefined) {
+            return value;
+        }
+        return JSON.parse(JSON.stringify(value));
     }
 
     function fitRouteView() {
@@ -3446,6 +3986,34 @@
         }, duration);
     }
 
+    function showMapToast(message, durationMs) {
+        if (!elements.mapToast) {
+            return;
+        }
+        if (state.mapToastTimer) {
+            window.clearTimeout(state.mapToastTimer);
+            state.mapToastTimer = null;
+        }
+        elements.mapToast.textContent = normalizeText(message, "");
+        elements.mapToast.classList.remove("hidden");
+        const timeout = Number(durationMs);
+        const duration = Number.isFinite(timeout) && timeout > 0 ? timeout : 2200;
+        state.mapToastTimer = window.setTimeout(function () {
+            hideMapToast();
+        }, duration);
+    }
+
+    function hideMapToast() {
+        if (!elements.mapToast) {
+            return;
+        }
+        if (state.mapToastTimer) {
+            window.clearTimeout(state.mapToastTimer);
+            state.mapToastTimer = null;
+        }
+        elements.mapToast.classList.add("hidden");
+    }
+
     function hideMapStatus() {
         if (state.mapStatusTimer) {
             window.clearTimeout(state.mapStatusTimer);
@@ -3508,39 +4076,131 @@
         return "draft";
     }
 
+    function requestCurrentLocationOnEntry() {
+        ensureCurrentLocationLoaded({
+            showLocatingMessage: false,
+            centerMap: false,
+            successFeedback: "",
+            failureFeedback: "",
+            alertOnFailure: false
+        }).catch(function () {
+            showTemporaryMapStatus("Current location is unavailable right now.", 2200);
+        });
+    }
+
     function locateCurrentPosition() {
-        if (!state.mapReady || !state.map) {
-            window.alert("Map is not ready yet.");
+        ensureCurrentLocationLoaded({
+            showLocatingMessage: true,
+            centerMap: true,
+            zoom: 17,
+            successFeedback: "Current position located.",
+            failureFeedback: "Current position unavailable.",
+            alertOnFailure: true
+        }).catch(function () {
+            // Error feedback is already handled in ensureCurrentLocationLoaded.
+        });
+    }
+
+    function useCurrentLocationAsRouteStart() {
+        const currentPoi = buildCurrentLocationPoi();
+        if (currentPoi) {
+            applyCurrentLocationAsRouteStart(currentPoi);
             return;
         }
-        setFeedback("Locating current position...");
 
-        locateCurrentPositionByAmap()
+        ensureCurrentLocationLoaded({
+            showLocatingMessage: true,
+            centerMap: true,
+            zoom: 17,
+            successFeedback: "Current location found.",
+            failureFeedback: "Current location is unavailable right now.",
+            alertOnFailure: false
+        }).then(function () {
+            const poi = buildCurrentLocationPoi();
+            if (!poi) {
+                setRouteFeedback("Current location is unavailable right now.", "error");
+                return;
+            }
+            applyCurrentLocationAsRouteStart(poi);
+        }).catch(function () {
+            setRouteFeedback("Current location is unavailable right now.", "error");
+        });
+    }
+
+    function applyCurrentLocationAsRouteStart(currentPoi) {
+        if (!currentPoi) {
+            setRouteFeedback("Current location is unavailable right now.", "error");
+            return;
+        }
+        if (isSamePoiOrCoordinate(currentPoi, state.routeStartPoi)) {
+            setRouteFeedback("Start point is already current location.", "info");
+            return;
+        }
+        const hasDestinationConflict = isSamePoiOrCoordinate(currentPoi, state.routeEndPoi);
+        if (hasDestinationConflict) {
+            state.routeEndPoi = null;
+        }
+        const feedback = hasDestinationConflict
+            ? "Start point set to current location. Please choose a destination."
+            : "Start point set to current location.";
+        setRoutePointFromPoi("start", currentPoi, feedback);
+    }
+
+    function ensureCurrentLocationLoaded(options) {
+        const opts = options || {};
+        if (!state.mapReady || !state.map) {
+            const mapNotReadyMessage = "Map is not ready yet.";
+            if (opts.alertOnFailure) {
+                window.alert(mapNotReadyMessage);
+            }
+            return Promise.reject(new Error(mapNotReadyMessage));
+        }
+
+        if (opts.showLocatingMessage !== false) {
+            setFeedback("Locating current position...");
+        }
+
+        return locateCurrentPositionByAmap()
             .catch(function () {
-                // Fallback: browser geolocation + coordinate conversion.
                 return locateCurrentPositionByBrowser();
             })
             .then(function (position) {
-                renderCurrentLocationMarker(position);
-                state.currentLocation = {
-                    id: "__current_location__",
-                    name: "Current Position",
-                    longitude: position[0],
-                    latitude: position[1],
-                    type: "current_location",
-                    description: "Browser/device current location"
-                };
-                state.map.setCenter(position);
-                state.map.setZoom(17);
-                setFeedback("Current position located.");
+                persistCurrentLocation(position);
+                if (opts.centerMap) {
+                    state.map.setCenter(position);
+                    if (Number.isFinite(Number(opts.zoom))) {
+                        state.map.setZoom(Number(opts.zoom));
+                    }
+                }
+                if (normalizeInput(opts.successFeedback)) {
+                    setFeedback(opts.successFeedback);
+                }
+                return state.currentLocation;
             })
             .catch(function (error) {
                 const message = error && error.message
                     ? error.message
                     : "Failed to locate current position.";
-                window.alert(message);
-                setFeedback("Current position unavailable.");
+                if (opts.alertOnFailure) {
+                    window.alert(message);
+                }
+                if (normalizeInput(opts.failureFeedback)) {
+                    setFeedback(opts.failureFeedback);
+                }
+                throw error;
             });
+    }
+
+    function persistCurrentLocation(position) {
+        renderCurrentLocationMarker(position);
+        state.currentLocation = {
+            id: "__current_location__",
+            name: "Current Position",
+            longitude: position[0],
+            latitude: position[1],
+            type: "current_location",
+            description: "Browser/device current location"
+        };
     }
 
     function buildCurrentLocationPoi() {
@@ -3903,4 +4563,3 @@
 
     init();
 })();
-

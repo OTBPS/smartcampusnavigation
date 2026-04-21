@@ -19,8 +19,6 @@
                 <span id="map-weather-temp" class="map-weather-mini-item">Temp: -</span>
                 <span id="map-weather-wind" class="map-weather-mini-item">Wind: -</span>
             </div>
-        </div>
-        <div class="topbar-right">
             <div id="class-peak-status" class="class-peak-status">Class peak status loading...</div>
         </div>
     </header>
@@ -64,16 +62,28 @@
                 </div>
 <section id="search-card" class="card card-primary map-search-card mode-search-home">
                 <form id="poi-search-form" class="map-search-form" autocomplete="off">
-                    <div class="map-search-shell">
-                        <span class="map-search-leading-icon" aria-hidden="true">
+                    <div class="map-search-row">
+                        <div class="map-search-shell">
+                            <span class="map-search-leading-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                    <path d="M10 4.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm0-1.5a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm10.53 16.47a.75.75 0 0 1-1.06 1.06l-3.67-3.67a.75.75 0 1 1 1.06-1.06l3.67 3.67Z"></path>
+                                </svg>
+                            </span>
+                            <input id="search-name" name="name" type="text" placeholder="Search campus places">
+                            <button type="button" id="search-clear-btn" class="map-search-clear-btn" aria-label="Clear search" hidden>
+                                <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                    <path d="M6.22 6.22a.75.75 0 0 1 1.06 0L12 10.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L13.06 12l4.72 4.72a.75.75 0 1 1-1.06 1.06L12 13.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L10.94 12 6.22 7.28a.75.75 0 0 1 0-1.06Z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="button"
+                                id="search-open-route-btn"
+                                class="map-search-route-btn"
+                                aria-label="Open Route Planning"
+                                title="Open Route Planning">
                             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                                <path d="M10 4.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm0-1.5a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm10.53 16.47a.75.75 0 0 1-1.06 1.06l-3.67-3.67a.75.75 0 1 1 1.06-1.06l3.67 3.67Z"></path>
-                            </svg>
-                        </span>
-                        <input id="search-name" name="name" type="text" placeholder="Search campus places">
-                        <button type="button" id="search-clear-btn" class="map-search-clear-btn" aria-label="Clear search" hidden>
-                            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                                <path d="M6.22 6.22a.75.75 0 0 1 1.06 0L12 10.94l4.72-4.72a.75.75 0 1 1 1.06 1.06L13.06 12l4.72 4.72a.75.75 0 1 1-1.06 1.06L12 13.06l-4.72 4.72a.75.75 0 1 1-1.06-1.06L10.94 12 6.22 7.28a.75.75 0 0 1 0-1.06Z"></path>
+                                <path d="M12 3.2 3.2 12 12 20.8 20.8 12 12 3.2Z" fill="#ffffff"></path>
+                                <path d="M8.2 10.9h4.7l-1.2-1.2 1.1-1.1 3 3-3 3-1.1-1.1 1.2-1.2H8.2v-1.4Z" fill="#118fa0"></path>
                             </svg>
                         </button>
                     </div>
@@ -156,6 +166,15 @@
                     <div class="route-transport-switch" role="group" aria-label="Route mode">
                         <button type="button" id="route-mode-walking-btn" class="route-mode-chip active" data-route-mode="walking">Walking</button>
                         <button type="button" id="route-mode-cycling-btn" class="route-mode-chip" data-route-mode="cycling">Cycling</button>
+                        <button type="button"
+                                id="route-use-current-start-btn"
+                                class="route-current-start-btn"
+                                title="Use current location as start"
+                                aria-label="Use current location as start">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 2a1 1 0 0 1 1 1v1.07a8 8 0 0 1 6.93 6.93H21a1 1 0 1 1 0 2h-1.07a8 8 0 0 1-6.93 6.93V21a1 1 0 1 1-2 0v-1.07a8 8 0 0 1-6.93-6.93H3a1 1 0 1 1 0-2h1.07a8 8 0 0 1 6.93-6.93V3a1 1 0 0 1 1-1Zm0 4a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm0 4a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"></path>
+                            </svg>
+                        </button>
                         <select id="route-mode" class="route-mode-select sr-only-select" aria-hidden="true" tabindex="-1">
                             <option value="walking" selected>Walking</option>
                             <option value="cycling">Cycling</option>
@@ -163,26 +182,47 @@
                     </div>
                     <div class="route-point route-point-start">
                         <span class="route-point-label">Start</span>
-                        <input id="route-start-name" class="route-point-input" type="text" value="Not selected" readonly>
+                        <div class="route-point-row">
+                            <input id="route-start-name" class="route-point-input" type="text" value="Not selected" readonly>
+                            <button type="button" id="route-start-clear-btn" class="route-waypoint-remove-btn route-point-clear-btn" aria-label="Clear start point">-</button>
+                        </div>
                     </div>
                     <div class="route-middle-actions">
-                        <button type="button" id="route-swap-btn" class="btn-secondary route-swap-btn">Swap</button>
                         <button type="button" id="add-waypoint-btn" class="btn-secondary route-waypoint-add-btn">+ Add Waypoint</button>
                     </div>
                     <div id="route-waypoint-list" class="route-waypoint-list"></div>
                     <div class="route-waypoint-add-wrap">
-                        <span class="route-point-label">Waypoints are optional (max 3)</span>
+                        <span class="route-point-label">Waypoints are optional (max 5)</span>
                     </div>
                     <div class="route-point route-point-end">
                         <span class="route-point-label">Destination</span>
-                        <input id="route-end-name" class="route-point-input" type="text" value="Not selected" readonly>
+                        <div class="route-point-row">
+                            <input id="route-end-name" class="route-point-input" type="text" value="Not selected" readonly>
+                            <button type="button" id="route-end-clear-btn" class="route-waypoint-remove-btn route-point-clear-btn" aria-label="Clear destination point">-</button>
+                        </div>
                     </div>
                 </div>
                 <div class="route-actions">
-                    <button type="button" id="plan-route-btn" class="btn-primary">Start Route Planning</button>
-                    <button type="button" id="clear-route-btn" class="btn-secondary">Clear Route</button>
+                    <div class="route-actions-primary">
+                        <button type="button" id="plan-route-btn" class="btn-primary">Start Route Planning</button>
+                    </div>
+                    <div class="route-actions-secondary">
+                        <button type="button" id="route-swap-btn" class="btn-secondary route-swap-btn">Swap</button>
+                        <button type="button" id="clear-route-btn" class="btn-secondary">Clear Route</button>
+                    </div>
                 </div>
                 <p id="route-feedback" class="helper-text route-feedback">Select start and destination POIs first.</p>
+                <section id="route-advice-block" class="route-advice-block hidden" aria-live="polite">
+                    <div class="route-advice-head">
+                        <h3 class="route-advice-title">Smart Travel Advice</h3>
+                        <span id="route-advice-risk" class="route-advice-risk-badge">-</span>
+                    </div>
+                    <p id="route-advice-text" class="route-advice-text">-</p>
+                    <p id="route-advice-waypoint" class="route-advice-waypoint hidden">-</p>
+                    <button type="button" id="route-advice-apply-btn" class="btn-secondary route-advice-apply-btn hidden">
+                        Apply recommended waypoint
+                    </button>
+                </section>
                 <div id="route-empty-state" class="empty-state empty-state-block">
                     <p class="empty-state-title">Route planning is not ready</p>
                     <p class="empty-state-body">Please set both start and destination points.</p>
@@ -314,6 +354,7 @@
                 <button type="button" class="map-category-btn" data-category="sports">Sports</button>
                 <button type="button" class="map-category-btn" data-category="convenience">Convenience</button>
             </div>
+            <div id="map-toast" class="map-toast hidden" role="status" aria-live="polite"></div>
             <div id="map-status" class="map-status hidden"></div>
         </section>
     </main>

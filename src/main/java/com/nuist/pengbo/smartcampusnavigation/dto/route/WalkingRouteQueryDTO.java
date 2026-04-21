@@ -6,10 +6,12 @@ import java.util.List;
 public class WalkingRouteQueryDTO {
     private BigDecimal originLng;
     private BigDecimal originLat;
+    private String originType;
     private List<BigDecimal> viaLngList;
     private List<BigDecimal> viaLatList;
     private BigDecimal destinationLng;
     private BigDecimal destinationLat;
+    private String destinationType;
 
     public BigDecimal getOriginLng() {
         return originLng;
@@ -25,6 +27,14 @@ public class WalkingRouteQueryDTO {
 
     public void setOriginLat(BigDecimal originLat) {
         this.originLat = originLat;
+    }
+
+    public String getOriginType() {
+        return originType;
+    }
+
+    public void setOriginType(String originType) {
+        this.originType = originType;
     }
 
     public List<BigDecimal> getViaLngList() {
@@ -57,5 +67,13 @@ public class WalkingRouteQueryDTO {
 
     public void setDestinationLat(BigDecimal destinationLat) {
         this.destinationLat = destinationLat;
+    }
+
+    public String getDestinationType() {
+        return destinationType;
+    }
+
+    public void setDestinationType(String destinationType) {
+        this.destinationType = destinationType;
     }
 }

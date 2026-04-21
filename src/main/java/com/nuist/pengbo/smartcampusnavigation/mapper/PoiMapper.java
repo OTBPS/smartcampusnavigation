@@ -13,6 +13,8 @@ public interface PoiMapper {
 
     List<String> selectAllTypes();
 
+    List<Poi> selectEnabledByExactName(@Param("name") String name);
+
     Poi selectById(@Param("id") Long id);
 
     int insert(Poi poi);

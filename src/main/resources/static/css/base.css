@@ -151,8 +151,10 @@ body {
 .main-layout.search-home-overlay .icon-rail,
 .main-layout.search-home-overlay .map-search-card,
 .main-layout.search-home-overlay .map-search-form,
+.main-layout.search-home-overlay .map-search-row,
 .main-layout.search-home-overlay .map-search-shell,
 .main-layout.search-home-overlay .map-search-clear-btn,
+.main-layout.search-home-overlay .map-search-route-btn,
 .main-layout.search-home-overlay #search-name,
 .main-layout.search-home-overlay .search-suggestion-panel {
     pointer-events: auto;
@@ -358,6 +360,13 @@ body {
     margin: 0;
 }
 
+.map-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48px;
+    align-items: center;
+    gap: 10px;
+}
+
 .map-search-shell {
     display: flex;
     align-items: center;
@@ -423,6 +432,43 @@ body {
     width: 16px;
     height: 16px;
     fill: currentColor;
+}
+
+.map-search-route-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-pill);
+    border: 1px solid #1b8a97;
+    background: #1598a6;
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgba(14, 101, 113, 0.28);
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.map-search-route-btn:hover {
+    background: #138b99;
+    border-color: #127f8c;
+}
+
+.map-search-route-btn:active {
+    transform: translateY(1px);
+}
+
+.map-search-route-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(21, 152, 166, 0.22), 0 8px 20px rgba(14, 101, 113, 0.3);
+}
+
+.map-search-route-btn svg {
+    width: 20px;
+    height: 20px;
+    display: block;
 }
 
 .sr-only-select {
@@ -577,8 +623,8 @@ body {
 }
 
 .search-actions button,
-.route-actions .btn-primary,
-.route-actions .btn-secondary,
+.route-actions-primary .btn-primary,
+.route-actions-secondary .btn-secondary,
 .history-search-row .btn-primary,
 .history-search-row .btn-secondary,
 .detail-actions .btn-secondary,
@@ -674,7 +720,7 @@ body {
     flex-direction: column;
     gap: 10px;
     overflow: auto;
-    max-height: 440px;
+    max-height: 880px;
 }
 
 .result-item {
@@ -839,6 +885,7 @@ body {
 
 .detail-content.hidden,
 .map-status.hidden,
+.map-toast.hidden,
 .empty-state.hidden,
 .route-summary.hidden,
 .route-alternative-wrap.hidden {
@@ -1066,6 +1113,37 @@ body {
     background: #ffffff;
 }
 
+.route-current-start-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border: 1px solid #d8dfeb;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #255edb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.route-current-start-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.route-current-start-btn:hover {
+    background: #eef4ff;
+    border-color: #aac4f4;
+}
+
+.route-current-start-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.16);
+}
+
 .route-mode-chip {
     height: 32px;
     min-width: 94px;
@@ -1126,12 +1204,12 @@ body {
 .route-middle-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 10px;
+    flex-wrap: nowrap;
 }
 
 .route-swap-btn {
-    min-width: 90px;
+    min-width: 0;
     background: #ffffff;
     border-color: #d4dce9;
     color: #334155;
@@ -1148,15 +1226,20 @@ body {
 }
 
 .route-waypoint-add-btn {
-    min-width: 150px;
+    min-width: 168px;
+    min-height: 40px;
+    border-radius: 999px;
     background: #ffffff;
-    border-color: #d4dce9;
-    color: #1f4ca8;
+    border-color: #c9d8f2;
+    color: #1d4ed8;
+    padding: 0 18px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
 }
 
 .route-waypoint-add-btn:hover {
-    background: #eef4ff;
-    border-color: #bdd2ff;
+    background: #f2f7ff;
+    border-color: #aecaef;
+    color: #1e40af;
 }
 
 .route-waypoint-list {
@@ -1168,6 +1251,7 @@ body {
     margin-bottom: 0;
 }
 
+.route-point-row,
 .route-waypoint-row {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -1190,30 +1274,43 @@ body {
     background: #ffe4e6;
 }
 
+.route-point-clear-btn {
+    flex-shrink: 0;
+}
+
 .route-waypoint-item.empty .route-point-input {
     color: var(--muted);
 }
 
 .route-actions {
-    display: flex;
-    gap: 8px;
+    display: grid;
+    gap: 10px;
     margin-bottom: 12px;
-    flex-wrap: wrap;
 }
 
-.route-actions .btn-primary,
-.route-actions .btn-secondary {
-    min-width: 150px;
+.route-actions-primary,
+.route-actions-secondary {
+    width: 100%;
 }
 
-.route-actions .btn-primary {
+.route-actions-primary .btn-primary,
+.route-actions-secondary .btn-secondary {
+    min-width: 0;
+    width: 100%;
+}
+
+.route-actions-primary .btn-primary {
     box-shadow: 0 6px 14px rgba(47, 111, 237, 0.25);
-    order: 1;
 }
 
-.route-actions .btn-secondary {
+.route-actions-secondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.route-actions-secondary .btn-secondary {
     background: #ffffff;
-    order: 2;
 }
 
 .route-alternative-wrap {
@@ -1329,6 +1426,91 @@ body {
     color: #1f4ca8;
 }
 
+.route-advice-block {
+    margin: 8px 0 12px;
+    border: 1px solid #d8e6ff;
+    border-radius: 12px;
+    background: #f4f8ff;
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.route-advice-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.route-advice-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f4ca8;
+}
+
+.route-advice-risk-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid #bfdbff;
+    background: #e8f1ff;
+    color: #1f4ca8;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.route-advice-risk-badge.risk-high {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #b42318;
+}
+
+.route-advice-risk-badge.risk-medium {
+    border-color: #fbd38d;
+    background: #fffbeb;
+    color: #b45309;
+}
+
+.route-advice-risk-badge.risk-low {
+    border-color: #bfdbff;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.route-advice-text,
+.route-advice-waypoint {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #334155;
+}
+
+.route-advice-waypoint {
+    color: #1e3a8a;
+    font-weight: 600;
+}
+
+.route-advice-apply-btn {
+    width: fit-content;
+    min-width: 200px;
+    height: 34px;
+    border-radius: 10px;
+    background: #ffffff;
+    border-color: #bfd2ff;
+    color: #1f4ca8;
+}
+
+.route-advice-apply-btn:hover {
+    background: #edf3ff;
+    border-color: #9fc0ff;
+}
+
 .route-card[data-route-state="failed"] #route-empty-state {
     border-color: #fecaca;
     background: #fef2f2;
@@ -1367,19 +1549,30 @@ body {
 
 .saved-card {
     min-height: 420px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .saved-layout {
-    min-height: 340px;
     display: block;
+    width: 100%;
+    max-width: 100%;
+    min-height: 340px;
+    box-sizing: border-box;
 }
 
 .saved-list-columns {
     display: grid;
-    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 10px;
     min-height: 340px;
+    max-height: min(800px, 72vh);
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 
 .saved-type-pane,
@@ -1392,6 +1585,11 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .saved-pane-title {
@@ -1406,22 +1604,39 @@ body {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    gap: 8px;
-    overflow: auto;
     min-height: 0;
+    min-width: 0;
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .saved-type-list {
-    max-height: 300px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 220px;
+    padding-right: 2px;
 }
 
 .saved-item-list {
-    max-height: 300px;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    grid-auto-rows: max-content;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: min(560px, 56vh);
 }
 
 .saved-type-btn {
     width: 100%;
+    min-width: 0;
+    max-width: none;
     min-height: 36px;
     border: 1px solid #d4deee;
     border-radius: 10px;
@@ -1565,7 +1780,7 @@ body {
     padding: 0;
     display: grid;
     gap: 8px;
-    max-height: 320px;
+    max-height: 640px;
     overflow: auto;
 }
 
@@ -1625,6 +1840,14 @@ body {
     display: block;
 }
 
+.weather-card h2 {
+    font-size: 19px;
+}
+
+.weather-card .helper-text {
+    font-size: 14px;
+}
+
 .weather-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1632,8 +1855,13 @@ body {
     margin-top: 8px;
 }
 
-.weather-item .detail-value {
+.weather-card .detail-label {
     font-size: 13px;
+}
+
+.weather-item .detail-value {
+    font-size: 15px;
+    font-weight: 600;
 }
 
 .suggestion-card {
@@ -1780,24 +2008,24 @@ body {
     z-index: 12;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     width: max-content;
     max-width: calc(100% - 28px);
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 8px;
+    padding: 12px;
     border-radius: var(--radius-pill);
 }
 
 .map-category-btn {
-    height: 38px;
+    height: 54px;
     border: 1px solid #d4dce9;
     border-radius: var(--radius-pill);
     background: #f8fafd;
     color: #334155;
-    font-size: 13px;
+    font-size: 18px;
     font-weight: 700;
-    padding: 0 14px;
+    padding: 0 22px;
     cursor: pointer;
     white-space: nowrap;
     transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
@@ -1827,6 +2055,24 @@ body {
     border-radius: 12px;
     font-size: 13px;
     padding: 10px 12px;
+}
+
+.map-toast {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 26;
+    max-width: min(360px, calc(100% - 32px));
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #dbe5f4;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+    border-radius: 14px;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    padding: 10px 14px;
+    pointer-events: none;
 }
 
 .confirm-modal {
@@ -2012,18 +2258,18 @@ body {
         right: 10px;
         bottom: 10px;
         max-width: calc(100% - 20px);
-        gap: 6px;
-        padding: 6px;
+        gap: 8px;
+        padding: 8px;
     }
 
     .map-category-btn {
-        height: 34px;
-        font-size: 12px;
-        padding: 0 10px;
+        height: 44px;
+        font-size: 14px;
+        padding: 0 14px;
     }
 
     .result-list {
-        max-height: 290px;
+        max-height: 580px;
     }
 
     .detail-grid {
@@ -2051,16 +2297,23 @@ body {
     .detail-actions .btn-secondary,
     .detail-primary-actions .btn-primary,
     .detail-primary-actions .btn-secondary,
-    .route-middle-actions .route-swap-btn,
     .route-middle-actions .route-waypoint-add-btn,
-    .route-actions .btn-primary,
-    .route-actions .btn-secondary {
+    .route-actions-primary .btn-primary,
+    .route-actions-secondary .btn-secondary {
         width: 100%;
+    }
+
+    .route-actions-secondary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .route-mode-chip {
         min-width: 0;
         flex: 1;
+    }
+
+    .route-current-start-btn {
+        flex-shrink: 0;
     }
 
     .route-transport-switch {

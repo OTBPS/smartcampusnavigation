@@ -46,6 +46,14 @@
         WHERE id = #{id}
     </select>
 
+    <select id="selectEnabledByExactName" resultMap="PoiResultMap">
+        SELECT id, name, type, longitude, latitude, description, opening_hours, enabled, created_at, updated_at
+        FROM poi
+        WHERE enabled = 1
+          AND name = #{name}
+        ORDER BY id ASC
+    </select>
+
     <select id="selectAllTypes" resultType="java.lang.String">
         SELECT DISTINCT type
         FROM poi

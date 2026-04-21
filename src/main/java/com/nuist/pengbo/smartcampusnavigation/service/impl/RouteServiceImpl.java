@@ -6,7 +6,9 @@ import com.nuist.pengbo.smartcampusnavigation.common.BusinessException;
 import com.nuist.pengbo.smartcampusnavigation.common.ResultCode;
 import com.nuist.pengbo.smartcampusnavigation.config.AmapProperties;
 import com.nuist.pengbo.smartcampusnavigation.dto.route.WalkingRouteQueryDTO;
+import com.nuist.pengbo.smartcampusnavigation.service.CampusRouteAdviceService;
 import com.nuist.pengbo.smartcampusnavigation.service.RouteService;
+import com.nuist.pengbo.smartcampusnavigation.vo.route.RouteAdviceVO;
 import com.nuist.pengbo.smartcampusnavigation.vo.route.WalkingRouteStepVO;
 import com.nuist.pengbo.smartcampusnavigation.vo.route.WalkingRouteVO;
 import org.springframework.stereotype.Service;
@@ -30,10 +32,14 @@ public class RouteServiceImpl implements RouteService {
     private final AmapProperties amapProperties;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final CampusRouteAdviceService campusRouteAdviceService;
 
-    public RouteServiceImpl(AmapProperties amapProperties, ObjectMapper objectMapper) {
+    public RouteServiceImpl(AmapProperties amapProperties,
+                            ObjectMapper objectMapper,
+                            CampusRouteAdviceService campusRouteAdviceService) {
         this.amapProperties = amapProperties;
         this.objectMapper = objectMapper;
+        this.campusRouteAdviceService = campusRouteAdviceService;
         this.restTemplate = new RestTemplate();
     }
 
@@ -65,9 +71,10 @@ public class RouteServiceImpl implements RouteService {
     private WalkingRouteVO planRouteWithOptionalVia(WalkingRouteQueryDTO queryDTO, RouteMode routeMode) {
         validateQuery(queryDTO);
         boolean hasVia = hasWaypoint(queryDTO);
+        WalkingRouteVO routeResult;
 
         if (!hasVia) {
-            return planSingleSegment(
+            routeResult = planSingleSegment(
                     queryDTO.getOriginLng(),
                     queryDTO.getOriginLat(),
                     queryDTO.getDestinationLng(),
@@ -75,6 +82,8 @@ public class RouteServiceImpl implements RouteService {
                     routeMode,
                     true
             );
+            attachWeatherAwareAdvice(routeResult, queryDTO, routeMode);
+            return routeResult;
         }
 
         List<RoutePoint> routePoints = buildRoutePoints(queryDTO);
@@ -87,7 +96,9 @@ public class RouteServiceImpl implements RouteService {
         }
         WalkingRouteVO merged = mergeRoutes(segments);
         merged.setAlternatives(List.of(copyRouteForAlternative(merged)));
-        return merged;
+        routeResult = merged;
+        attachWeatherAwareAdvice(routeResult, queryDTO, routeMode);
+        return routeResult;
     }
 
     private List<RoutePoint> buildRoutePoints(WalkingRouteQueryDTO queryDTO) {
@@ -421,5 +432,45 @@ public class RouteServiceImpl implements RouteService {
 
     private List<BigDecimal> safeList(List<BigDecimal> source) {
         return source == null ? List.of() : source;
+    }
+
+    private void attachWeatherAwareAdvice(WalkingRouteVO routeVO,
+                                          WalkingRouteQueryDTO queryDTO,
+                                          RouteMode routeMode) {
+        if (routeVO == null || queryDTO == null) {
+            return;
+        }
+        try {
+            RouteAdviceVO adviceVO = campusRouteAdviceService.buildAdvice(
+                    queryDTO,
+                    routeVO.getRoutePolyline(),
+                    routeMode == RouteMode.WALKING
+            );
+            if (adviceVO == null || !StringUtils.hasText(adviceVO.getSmartTravelAdvice())) {
+                routeVO.setWeatherRiskLevel(null);
+                routeVO.setWeatherRiskType(null);
+                routeVO.setSmartTravelAdvice(null);
+                routeVO.setRecommendedWaypointName(null);
+                routeVO.setRecommendedStrategyTag(null);
+                routeVO.setRecommendedWaypointLng(null);
+                routeVO.setRecommendedWaypointLat(null);
+                return;
+            }
+            routeVO.setWeatherRiskLevel(adviceVO.getWeatherRiskLevel());
+            routeVO.setWeatherRiskType(adviceVO.getWeatherRiskType());
+            routeVO.setSmartTravelAdvice(adviceVO.getSmartTravelAdvice());
+            routeVO.setRecommendedWaypointName(adviceVO.getRecommendedWaypointName());
+            routeVO.setRecommendedStrategyTag(adviceVO.getRecommendedStrategyTag());
+            routeVO.setRecommendedWaypointLng(adviceVO.getRecommendedWaypointLng());
+            routeVO.setRecommendedWaypointLat(adviceVO.getRecommendedWaypointLat());
+        } catch (Exception ignored) {
+            routeVO.setWeatherRiskLevel(null);
+            routeVO.setWeatherRiskType(null);
+            routeVO.setSmartTravelAdvice(null);
+            routeVO.setRecommendedWaypointName(null);
+            routeVO.setRecommendedStrategyTag(null);
+            routeVO.setRecommendedWaypointLng(null);
+            routeVO.setRecommendedWaypointLat(null);
+        }
     }
 }
