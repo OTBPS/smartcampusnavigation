@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+  <defs>
+    <style>
+      .bg{fill:#fff}
+      .box{fill:#f8fafc;stroke:#334155;stroke-width:2.2}
+      .blue{fill:#eaf3ff;stroke:#2563eb}
+      .green{fill:#eafaf2;stroke:#15935f}
+      .orange{fill:#fff3e3;stroke:#e17b24}
+      .purple{fill:#f3ecff;stroke:#7c3fc4}
+      .red{fill:#fff1f2;stroke:#e11d48}
+      .line{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}
+      .plain-line{stroke:#475569;stroke-width:2.6;fill:none}
+      .text{font-family:"Times New Roman",Arial,sans-serif;fill:#111827}
+      .title{font-size:30px;font-weight:700}
+      .label{font-size:23px}
+      .small{font-size:19px}
+      .tiny{font-size:17px}
+      .bold{font-weight:700}
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0 L12 6 L0 12 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1500" height="900"/>
+  
+<rect class="box blue" x="120" y="95" width="300" height="80" rx="16"/>
+<text class="text label bold" x="270" y="143" text-anchor="middle">Select Start Point</text>
+
+<path class="line" d="M420 135 L520 135"/>
+<rect class="box blue" x="520" y="95" width="300" height="80" rx="16"/>
+<text class="text label bold" x="670" y="143" text-anchor="middle">Select Waypoint</text>
+
+<path class="line" d="M820 135 L920 135"/>
+<rect class="box blue" x="920" y="95" width="330" height="80" rx="16"/>
+<text class="text label bold" x="1085" y="143" text-anchor="middle">Select Destination</text>
+
+<path class="line" d="M1085 175 L1085 245 L750 245 L750 305"/>
+<rect class="box orange" x="560" y="315" width="380" height="80" rx="16"/>
+<text class="text label bold" x="750" y="363" text-anchor="middle">Validate Parameters</text>
+
+<path class="line" d="M750 395 L750 465"/>
+<rect class="box green" x="535" y="475" width="430" height="80" rx="16"/>
+<text class="text label bold" x="750" y="523" text-anchor="middle">Invoke AMap Route Service</text>
+
+<path class="line" d="M750 555 L750 625"/>
+<rect class="box green" x="550" y="635" width="400" height="80" rx="16"/>
+<text class="text label bold" x="750" y="683" text-anchor="middle">Parse Route Result</text>
+
+<path class="line" d="M750 715 L750 780"/>
+<rect class="box blue" x="510" y="790" width="480" height="80" rx="16"/>
+<text class="text label bold" x="750" y="838" text-anchor="middle">Render Route on Frontend Map</text>
+
+
+</svg>

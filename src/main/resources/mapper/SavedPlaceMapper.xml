@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.nuist.pengbo.smartcampusnavigation.mapper.SavedPlaceMapper">
+
+    <resultMap id="SavedPlaceResultMap" type="com.nuist.pengbo.smartcampusnavigation.entity.SavedPlace">
+        <id property="id" column="id"/>
+        <result property="poiId" column="poi_id"/>
+        <result property="name" column="name"/>
+        <result property="type" column="type"/>
+        <result property="longitude" column="longitude"/>
+        <result property="latitude" column="latitude"/>
+        <result property="description" column="description"/>
+        <result property="openingHours" column="opening_hours"/>
+        <result property="source" column="source"/>
+        <result property="savedAt" column="saved_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="SavedPlaceColumns">
+        id, poi_id, name, type, longitude, latitude, description, opening_hours, source, saved_at, updated_at
+    </sql>
+
+    <select id="selectAll" resultMap="SavedPlaceResultMap">
+        SELECT <include refid="SavedPlaceColumns"/>
+        FROM saved_place
+        ORDER BY saved_at DESC, updated_at DESC, id DESC
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(1)
+        FROM saved_place
+    </select>
+
+    <select id="selectById" resultMap="SavedPlaceResultMap">
+        SELECT <include refid="SavedPlaceColumns"/>
+        FROM saved_place
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="selectByPoiId" resultMap="SavedPlaceResultMap">
+        SELECT <include refid="SavedPlaceColumns"/>
+        FROM saved_place
+        WHERE poi_id = #{poiId}
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectByRoundedCoordinate" resultMap="SavedPlaceResultMap">
+        SELECT <include refid="SavedPlaceColumns"/>
+        FROM saved_place
+        WHERE ROUND(longitude, 6) = #{longitude}
+          AND ROUND(latitude, 6) = #{latitude}
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.nuist.pengbo.smartcampusnavigation.entity.SavedPlace"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO saved_place (
+            poi_id, name, type, longitude, latitude,
+            description, opening_hours, source, saved_at, updated_at
+        )
+        VALUES (
+            #{poiId}, #{name}, #{type}, #{longitude}, #{latitude},
+            #{description}, #{openingHours}, #{source},
+            COALESCE(#{savedAt}, NOW()), NOW()
+        )
+    </insert>
+
+    <update id="updateById" parameterType="com.nuist.pengbo.smartcampusnavigation.entity.SavedPlace">
+        UPDATE saved_place
+        SET poi_id = #{poiId},
+            name = #{name},
+            type = #{type},
+            longitude = #{longitude},
+            latitude = #{latitude},
+            description = #{description},
+            opening_hours = #{openingHours},
+            source = #{source},
+            saved_at = COALESCE(#{savedAt}, NOW()),
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateNameById">
+        UPDATE saved_place
+        SET name = #{name},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM saved_place
+        WHERE id = #{id}
+    </delete>
+</mapper>

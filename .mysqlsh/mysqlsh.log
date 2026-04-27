@@ -1,0 +1,20 @@
+2026-04-24 05:37:12: Info: C:\Program Files\MySQL\MySQL Shell 8.0\bin\mysqlsh.exe   Ver 8.0.45 for Win64 on x86_64 - for MySQL 8.0.45 (MySQL Community Server (GPL)) - build 21843354 - commit_id 18ea0a3d76803523e47b7d687eb2ec2a7e753c3b
+2026-04-24 05:37:12: Info: Using credential store helper: C:\Program Files\MySQL\MySQL Shell 8.0\bin\mysql-secret-store-windows-credential.exe
+2026-04-24 05:37:12: Info: Setting Python home to 'C:\Program Files\MySQL\MySQL Shell 8.0\lib\Python3.13'
+2026-04-24 05:37:12: Info: Loading startup files...
+2026-04-24 05:37:12: Info: Loading plugins...
+2026-04-24 05:37:12: Info: Pager has been set to 'more.com'.
+2026-04-24 05:37:12: Warning: Using a password on the command line interface can be insecure.
+2026-04-24 05:37:12: Info: Connecting to MySQL at: root@localhost:3306/smart_campus_navigation
+2026-04-24 05:37:12: Info: main: tid=5141: CONNECTED: localhost:3306
+2026-04-24 05:37:12: Info: Now tracking 'sql_mode' system variable.
+2026-04-24 05:37:34: Info: C:\Program Files\MySQL\MySQL Shell 8.0\bin\mysqlsh.exe   Ver 8.0.45 for Win64 on x86_64 - for MySQL 8.0.45 (MySQL Community Server (GPL)) - build 21843354 - commit_id 18ea0a3d76803523e47b7d687eb2ec2a7e753c3b
+2026-04-24 05:37:34: Info: Using credential store helper: C:\Program Files\MySQL\MySQL Shell 8.0\bin\mysql-secret-store-windows-credential.exe
+2026-04-24 05:37:34: Info: Setting Python home to 'C:\Program Files\MySQL\MySQL Shell 8.0\lib\Python3.13'
+2026-04-24 05:37:34: Info: Loading startup files...
+2026-04-24 05:37:34: Info: Loading plugins...
+2026-04-24 05:37:34: Info: Pager has been set to 'more.com'.
+2026-04-24 05:37:34: Warning: Using a password on the command line interface can be insecure.
+2026-04-24 05:37:34: Info: Connecting to MySQL at: root@localhost:3306/smart_campus_navigation
+2026-04-24 05:37:34: Info: main: tid=5143: CONNECTED: localhost:3306
+2026-04-24 05:37:34: Info: Now tracking 'sql_mode' system variable.

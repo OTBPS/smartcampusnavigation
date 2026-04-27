@@ -7,6 +7,7 @@ import com.nuist.pengbo.smartcampusnavigation.service.CampusRouteAdviceService;
 import com.nuist.pengbo.smartcampusnavigation.service.WeatherRiskEvaluator;
 import com.nuist.pengbo.smartcampusnavigation.service.WeatherService;
 import com.nuist.pengbo.smartcampusnavigation.vo.route.RouteAdviceVO;
+import com.nuist.pengbo.smartcampusnavigation.vo.route.RouteAdviceWaypointVO;
 import com.nuist.pengbo.smartcampusnavigation.vo.weather.WeatherCurrentVO;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -26,6 +27,8 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
     private static final double SHELTER_DISTANCE_THRESHOLD_METERS = 50.0;
     private static final int MAX_COVERED_SHORTLIST = 5;
     private static final int DEFAULT_COVERED_PRIORITY = 50;
+    private static final double COORDINATE_EQUALITY_TOLERANCE = 0.000001;
+    private static final String COVERED_STRATEGY_TAG = "covered_path";
 
     private static final Set<String> KNOWN_TYPES = Set.of(
             "administrative_office", "college_office", "service_center", "teaching_building",
@@ -117,6 +120,7 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
         RouteAdviceVO advice = new RouteAdviceVO();
         advice.setWeatherRiskLevel(riskResult.getRiskLevel());
         advice.setWeatherRiskType(riskResult.getRiskType());
+        advice.setRecommendedWaypoints(List.of());
 
         String originType = normalizeType(queryDTO == null ? null : queryDTO.getOriginType());
         String destinationType = normalizeType(queryDTO == null ? null : queryDTO.getDestinationType());
@@ -125,65 +129,69 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
         if (!allowCoveredWaypointRecommendation) {
             advice.setSmartTravelAdvice(buildAdviceTextWithoutCoveredCandidate(riskResult.getRiskType(), matchedRule));
             advice.setRecommendedStrategyTag(buildStrategyTagWithoutCoveredCandidate(riskResult.getRiskType(), matchedRule));
-            advice.setRecommendedWaypointName(null);
-            advice.setRecommendedWaypointLng(null);
-            advice.setRecommendedWaypointLat(null);
+            clearLegacyRecommendation(advice);
             return advice;
         }
 
-        CoveredCandidate selectedCandidate = selectCoveredCandidate(
+        List<CoveredCandidate> selectedCandidates = selectCoveredCandidates(
                 riskResult.getTriggerFamily(),
-                baselinePolyline
+                baselinePolyline,
+                queryDTO
         );
 
-        if (selectedCandidate != null) {
-            advice.setRecommendedStrategyTag("covered_path");
-            advice.setRecommendedWaypointName(selectedCandidate.name);
-            advice.setRecommendedWaypointLng(selectedCandidate.lng);
-            advice.setRecommendedWaypointLat(selectedCandidate.lat);
-            advice.setSmartTravelAdvice(buildAdviceTextWithCoveredCandidate(riskResult.getRiskType(), matchedRule, selectedCandidate.name));
+        if (!selectedCandidates.isEmpty()) {
+            List<RouteAdviceWaypointVO> recommendedWaypoints = selectedCandidates.stream()
+                    .map(this::toWaypointVO)
+                    .toList();
+            advice.setRecommendedWaypoints(recommendedWaypoints);
+            advice.setRecommendedStrategyTag(COVERED_STRATEGY_TAG);
+            applyLegacyMirrorFromList(advice);
+            advice.setSmartTravelAdvice(buildAdviceTextWithCoveredCandidate(
+                    riskResult.getRiskType(),
+                    matchedRule,
+                    recommendedWaypoints.get(0).getName())
+            );
             return advice;
         }
 
         advice.setSmartTravelAdvice(buildAdviceTextWithoutCoveredCandidate(riskResult.getRiskType(), matchedRule));
         advice.setRecommendedStrategyTag(buildStrategyTagWithoutCoveredCandidate(riskResult.getRiskType(), matchedRule));
-        advice.setRecommendedWaypointName(null);
-        advice.setRecommendedWaypointLng(null);
-        advice.setRecommendedWaypointLat(null);
+        clearLegacyRecommendation(advice);
         return advice;
     }
 
-    private CoveredCandidate selectCoveredCandidate(String triggerFamily, List<List<Double>> baselinePolyline) {
+    private List<CoveredCandidate> selectCoveredCandidates(String triggerFamily,
+                                                           List<List<Double>> baselinePolyline,
+                                                           WalkingRouteQueryDTO queryDTO) {
         if (!StringUtils.hasText(triggerFamily) || !COVERED_WEATHER_FAMILIES.contains(triggerFamily)) {
-            return null;
+            return List.of();
         }
         List<RoutePoint> routePoints = normalizePolylinePoints(baselinePolyline);
         if (routePoints.size() < 2) {
-            return null;
+            return List.of();
         }
 
         List<CoveredCandidate> resolved = resolveCoveredCandidatesByExactName();
         if (resolved.isEmpty()) {
-            return null;
+            return List.of();
         }
 
         for (CoveredCandidate candidate : resolved) {
-            candidate.distanceToPolylineMeters = distancePointToPolylineMeters(candidate.lng, candidate.lat, routePoints);
+            RouteProjection projection = projectPointToPolyline(candidate.lng, candidate.lat, routePoints);
+            candidate.distanceToPolylineMeters = projection.distanceToPolylineMeters;
+            candidate.distanceFromRouteStartMeters = projection.distanceFromRouteStartMeters;
         }
 
-        List<CoveredCandidate> nearbyCandidates = resolved.stream()
+        return resolved.stream()
                 .filter(item -> item.distanceToPolylineMeters <= SHELTER_DISTANCE_THRESHOLD_METERS)
+                .filter(item -> !isRouteEndpointOrViaCandidate(item, queryDTO))
                 .sorted(Comparator
-                        .comparingDouble((CoveredCandidate item) -> item.distanceToPolylineMeters)
+                        .comparingDouble((CoveredCandidate item) -> item.distanceFromRouteStartMeters)
+                        .thenComparingDouble(item -> item.distanceToPolylineMeters)
                         .thenComparing((CoveredCandidate left, CoveredCandidate right) -> Integer.compare(right.priority, left.priority))
                         .thenComparing(item -> item.name))
                 .limit(MAX_COVERED_SHORTLIST)
                 .toList();
-
-        if (nearbyCandidates.isEmpty()) {
-            return null;
-        }
-        return nearbyCandidates.get(0);
     }
 
     private List<CoveredCandidate> resolveCoveredCandidatesByExactName() {
@@ -203,6 +211,7 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
             candidate.lat = poi.getLatitude().doubleValue();
             candidate.priority = COVERED_PRIORITY_MAP.getOrDefault(candidate.name, DEFAULT_COVERED_PRIORITY);
             candidate.distanceToPolylineMeters = Double.MAX_VALUE;
+            candidate.distanceFromRouteStartMeters = Double.MAX_VALUE;
             resolved.add(candidate);
         }
         return resolved;
@@ -227,29 +236,33 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
         return points;
     }
 
-    private double distancePointToPolylineMeters(double lng, double lat, List<RoutePoint> routePoints) {
+    private RouteProjection projectPointToPolyline(double lng, double lat, List<RoutePoint> routePoints) {
         if (routePoints == null || routePoints.size() < 2) {
-            return Double.MAX_VALUE;
+            return new RouteProjection(Double.MAX_VALUE, Double.MAX_VALUE);
         }
         double referenceLatitude = calculateReferenceLatitude(routePoints);
         double[] point = toMeters(lng, lat, referenceLatitude);
 
         double minDistance = Double.MAX_VALUE;
+        double distanceFromStart = Double.MAX_VALUE;
+        double accumulatedDistance = 0.0;
         for (int i = 0; i < routePoints.size() - 1; i++) {
             RoutePoint start = routePoints.get(i);
             RoutePoint end = routePoints.get(i + 1);
             double[] startXY = toMeters(start.lng, start.lat, referenceLatitude);
             double[] endXY = toMeters(end.lng, end.lat, referenceLatitude);
-            double distance = pointToSegmentDistance(
+            SegmentProjection projection = projectPointToSegment(
                     point[0], point[1],
                     startXY[0], startXY[1],
                     endXY[0], endXY[1]
             );
-            if (distance < minDistance) {
-                minDistance = distance;
+            if (projection.distanceMeters < minDistance) {
+                minDistance = projection.distanceMeters;
+                distanceFromStart = accumulatedDistance + projection.distanceFromSegmentStartMeters;
             }
+            accumulatedDistance += euclideanDistance(startXY[0], startXY[1], endXY[0], endXY[1]);
         }
-        return minDistance;
+        return new RouteProjection(minDistance, distanceFromStart);
     }
 
     private double calculateReferenceLatitude(List<RoutePoint> routePoints) {
@@ -270,26 +283,30 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
         return new double[]{x, y};
     }
 
-    private double pointToSegmentDistance(double px, double py,
-                                          double x1, double y1,
-                                          double x2, double y2) {
+    private SegmentProjection projectPointToSegment(double px, double py,
+                                                    double x1, double y1,
+                                                    double x2, double y2) {
         double dx = x2 - x1;
         double dy = y2 - y1;
         if (dx == 0 && dy == 0) {
-            return euclideanDistance(px, py, x1, y1);
+            return new SegmentProjection(euclideanDistance(px, py, x1, y1), 0.0);
         }
 
         double t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
         if (t < 0) {
-            return euclideanDistance(px, py, x1, y1);
+            return new SegmentProjection(euclideanDistance(px, py, x1, y1), 0.0);
         }
+        double segmentLength = euclideanDistance(x1, y1, x2, y2);
         if (t > 1) {
-            return euclideanDistance(px, py, x2, y2);
+            return new SegmentProjection(euclideanDistance(px, py, x2, y2), segmentLength);
         }
 
         double projectionX = x1 + t * dx;
         double projectionY = y1 + t * dy;
-        return euclideanDistance(px, py, projectionX, projectionY);
+        return new SegmentProjection(
+                euclideanDistance(px, py, projectionX, projectionY),
+                segmentLength * t
+        );
     }
 
     private double euclideanDistance(double x1, double y1, double x2, double y2) {
@@ -415,6 +432,73 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
         return Map.copyOf(priorities);
     }
 
+    private RouteAdviceWaypointVO toWaypointVO(CoveredCandidate candidate) {
+        RouteAdviceWaypointVO waypointVO = new RouteAdviceWaypointVO();
+        waypointVO.setName(candidate.name);
+        waypointVO.setLng(candidate.lng);
+        waypointVO.setLat(candidate.lat);
+        waypointVO.setDistanceMeters(candidate.distanceToPolylineMeters);
+        waypointVO.setDistanceFromStartMeters(candidate.distanceFromRouteStartMeters);
+        waypointVO.setPriority(candidate.priority);
+        waypointVO.setStrategyTag(COVERED_STRATEGY_TAG);
+        return waypointVO;
+    }
+
+    private void applyLegacyMirrorFromList(RouteAdviceVO advice) {
+        if (advice == null) {
+            return;
+        }
+        List<RouteAdviceWaypointVO> list = advice.getRecommendedWaypoints();
+        if (list == null || list.isEmpty()) {
+            clearLegacyRecommendation(advice);
+            return;
+        }
+        RouteAdviceWaypointVO first = list.get(0);
+        advice.setRecommendedWaypointName(first == null ? null : first.getName());
+        advice.setRecommendedWaypointLng(first == null ? null : first.getLng());
+        advice.setRecommendedWaypointLat(first == null ? null : first.getLat());
+    }
+
+    private void clearLegacyRecommendation(RouteAdviceVO advice) {
+        if (advice == null) {
+            return;
+        }
+        advice.setRecommendedWaypointName(null);
+        advice.setRecommendedWaypointLng(null);
+        advice.setRecommendedWaypointLat(null);
+    }
+
+    private boolean isRouteEndpointOrViaCandidate(CoveredCandidate candidate, WalkingRouteQueryDTO queryDTO) {
+        if (candidate == null || queryDTO == null) {
+            return false;
+        }
+        if (isCoordinateEquivalent(candidate.lng, candidate.lat, queryDTO.getOriginLng(), queryDTO.getOriginLat())) {
+            return true;
+        }
+        if (isCoordinateEquivalent(candidate.lng, candidate.lat, queryDTO.getDestinationLng(), queryDTO.getDestinationLat())) {
+            return true;
+        }
+        List<BigDecimal> viaLngList = queryDTO.getViaLngList();
+        List<BigDecimal> viaLatList = queryDTO.getViaLatList();
+        if (viaLngList == null || viaLatList == null || viaLngList.size() != viaLatList.size()) {
+            return false;
+        }
+        for (int i = 0; i < viaLngList.size(); i++) {
+            if (isCoordinateEquivalent(candidate.lng, candidate.lat, viaLngList.get(i), viaLatList.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isCoordinateEquivalent(double lngA, double latA, BigDecimal lngB, BigDecimal latB) {
+        if (lngB == null || latB == null) {
+            return false;
+        }
+        return Math.abs(lngA - lngB.doubleValue()) <= COORDINATE_EQUALITY_TOLERANCE
+                && Math.abs(latA - latB.doubleValue()) <= COORDINATE_EQUALITY_TOLERANCE;
+    }
+
     private static class CampusRouteRule {
         private final Set<String> weatherFamilies;
         private final Set<String> originTypes;
@@ -451,5 +535,26 @@ public class CampusRouteAdviceServiceImpl implements CampusRouteAdviceService {
         private double lat;
         private int priority;
         private double distanceToPolylineMeters;
+        private double distanceFromRouteStartMeters;
+    }
+
+    private static class RouteProjection {
+        private final double distanceToPolylineMeters;
+        private final double distanceFromRouteStartMeters;
+
+        private RouteProjection(double distanceToPolylineMeters, double distanceFromRouteStartMeters) {
+            this.distanceToPolylineMeters = distanceToPolylineMeters;
+            this.distanceFromRouteStartMeters = distanceFromRouteStartMeters;
+        }
+    }
+
+    private static class SegmentProjection {
+        private final double distanceMeters;
+        private final double distanceFromSegmentStartMeters;
+
+        private SegmentProjection(double distanceMeters, double distanceFromSegmentStartMeters) {
+            this.distanceMeters = distanceMeters;
+            this.distanceFromSegmentStartMeters = distanceFromSegmentStartMeters;
+        }
     }
 }

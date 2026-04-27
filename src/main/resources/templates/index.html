@@ -50,6 +50,12 @@
                     </svg>
                     <span class="rail-label">Weather</span>
                 </button>
+                <button type="button" class="rail-item" data-rail-mode="assistant">
+                    <svg class="rail-icon" aria-hidden="true">
+                        <use href="/icons/rail-icons.svg?v=20260425#icon-assistant"></use>
+                    </svg>
+                    <span class="rail-label">Assistant</span>
+                </button>
             </nav>
 
             <aside id="left-panel" class="left-panel drawer-panel" data-ui-mode="search-home">
@@ -183,7 +189,7 @@
                     <div class="route-point route-point-start">
                         <span class="route-point-label">Start</span>
                         <div class="route-point-row">
-                            <input id="route-start-name" class="route-point-input" type="text" value="Not selected" readonly>
+                            <input id="route-start-name" class="route-point-input route-point-picker-input" type="text" value="Not selected" readonly title="Select start point from search">
                             <button type="button" id="route-start-clear-btn" class="route-waypoint-remove-btn route-point-clear-btn" aria-label="Clear start point">-</button>
                         </div>
                     </div>
@@ -197,7 +203,7 @@
                     <div class="route-point route-point-end">
                         <span class="route-point-label">Destination</span>
                         <div class="route-point-row">
-                            <input id="route-end-name" class="route-point-input" type="text" value="Not selected" readonly>
+                            <input id="route-end-name" class="route-point-input route-point-picker-input" type="text" value="Not selected" readonly title="Select destination from search">
                             <button type="button" id="route-end-clear-btn" class="route-waypoint-remove-btn route-point-clear-btn" aria-label="Clear destination point">-</button>
                         </div>
                     </div>
@@ -218,6 +224,15 @@
                         <span id="route-advice-risk" class="route-advice-risk-badge">-</span>
                     </div>
                     <p id="route-advice-text" class="route-advice-text">-</p>
+                    <div id="route-advice-waypoint-list-wrap" class="route-advice-waypoint-list-wrap hidden">
+                        <p class="route-advice-waypoint-list-title">Recommended covered waypoints</p>
+                        <ul id="route-advice-waypoint-list" class="route-advice-waypoint-list"></ul>
+                        <button type="button"
+                                id="route-advice-apply-covered-route-btn"
+                                class="btn-secondary route-advice-apply-covered-route-btn">
+                            Apply covered route
+                        </button>
+                    </div>
                     <p id="route-advice-waypoint" class="route-advice-waypoint hidden">-</p>
                     <button type="button" id="route-advice-apply-btn" class="btn-secondary route-advice-apply-btn hidden">
                         Apply recommended waypoint
@@ -329,6 +344,22 @@
                         </section>
                     </div>
                 </div>
+            </section>
+
+<section id="assistant-card" class="card card-tertiary assistant-card mode-assistant" hidden>
+                <h2>Assistant</h2>
+                <div id="assistant-messages" class="assistant-messages" aria-live="polite">
+                    <div class="assistant-message assistant-message-system">
+                        <strong>Campus Assistant</strong>
+                        <p>Try: "Tell me about the nearest canteen near the library."</p>
+                    </div>
+                </div>
+                <div id="assistant-evidence" class="assistant-evidence hidden"></div>
+                <form id="assistant-form" class="assistant-form" autocomplete="off">
+                    <textarea id="assistant-question" rows="3" maxlength="500" placeholder="Ask a campus navigation question"></textarea>
+                    <button type="submit" id="assistant-send-btn" class="btn-primary assistant-ask-btn">Ask</button>
+                </form>
+                <p id="assistant-status" class="helper-text">Assistant ready.</p>
             </section>
 
 <section id="suggestion-card" class="card card-tertiary suggestion-card mode-search-home">

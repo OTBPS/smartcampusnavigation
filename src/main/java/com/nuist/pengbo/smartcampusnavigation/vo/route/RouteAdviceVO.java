@@ -1,9 +1,12 @@
 package com.nuist.pengbo.smartcampusnavigation.vo.route;
 
+import java.util.List;
+
 public class RouteAdviceVO {
     private String weatherRiskLevel;
     private String weatherRiskType;
     private String smartTravelAdvice;
+    private List<RouteAdviceWaypointVO> recommendedWaypoints;
     private String recommendedWaypointName;
     private String recommendedStrategyTag;
     private Double recommendedWaypointLng;
@@ -31,6 +34,14 @@ public class RouteAdviceVO {
 
     public void setSmartTravelAdvice(String smartTravelAdvice) {
         this.smartTravelAdvice = smartTravelAdvice;
+    }
+
+    public List<RouteAdviceWaypointVO> getRecommendedWaypoints() {
+        return recommendedWaypoints;
+    }
+
+    public void setRecommendedWaypoints(List<RouteAdviceWaypointVO> recommendedWaypoints) {
+        this.recommendedWaypoints = recommendedWaypoints;
     }
 
     public String getRecommendedWaypointName() {

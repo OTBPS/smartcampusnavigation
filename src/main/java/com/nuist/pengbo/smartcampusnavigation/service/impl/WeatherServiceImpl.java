@@ -36,6 +36,9 @@ public class WeatherServiceImpl implements WeatherService {
     private static final String DEFAULT_HOST = "https://nc2pg7kpbt.re.qweatherapi.com";
     private static final String DEFAULT_LOCATION = "118.7169,32.2072";
     private static final String AUTH_TYPE_API_KEY = "api-key";
+    // Temporary switch for weather-adaptive route testing.
+    private static final boolean FORCE_RAIN_TEST_MODE = true;
+    private static final String FORCE_RAIN_TEXT = "Rain";
 
     private final QWeatherProperties qWeatherProperties;
     private final ObjectMapper objectMapper;
@@ -173,6 +176,9 @@ public class WeatherServiceImpl implements WeatherService {
 
         WeatherCurrentVO weather = new WeatherCurrentVO();
         String text = now.path("text").asText("");
+        if (FORCE_RAIN_TEST_MODE) {
+            text = FORCE_RAIN_TEXT;
+        }
         weather.setText(text);
         weather.setWeatherText(text);
         weather.setTemp(now.path("temp").asText(""));

@@ -9,6 +9,7 @@ import com.nuist.pengbo.smartcampusnavigation.dto.route.WalkingRouteQueryDTO;
 import com.nuist.pengbo.smartcampusnavigation.service.CampusRouteAdviceService;
 import com.nuist.pengbo.smartcampusnavigation.service.RouteService;
 import com.nuist.pengbo.smartcampusnavigation.vo.route.RouteAdviceVO;
+import com.nuist.pengbo.smartcampusnavigation.vo.route.RouteAdviceWaypointVO;
 import com.nuist.pengbo.smartcampusnavigation.vo.route.WalkingRouteStepVO;
 import com.nuist.pengbo.smartcampusnavigation.vo.route.WalkingRouteVO;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ import java.util.Set;
 public class RouteServiceImpl implements RouteService {
     private static final String AMAP_WALKING_URL = "https://restapi.amap.com/v3/direction/walking";
     private static final String AMAP_CYCLING_URL = "https://restapi.amap.com/v4/direction/bicycling";
-    private static final int MAX_WAYPOINTS = 3;
+    private static final int MAX_WAYPOINTS = 5;
 
     private final AmapProperties amapProperties;
     private final ObjectMapper objectMapper;
@@ -450,6 +451,7 @@ public class RouteServiceImpl implements RouteService {
                 routeVO.setWeatherRiskLevel(null);
                 routeVO.setWeatherRiskType(null);
                 routeVO.setSmartTravelAdvice(null);
+                routeVO.setRecommendedWaypoints(List.of());
                 routeVO.setRecommendedWaypointName(null);
                 routeVO.setRecommendedStrategyTag(null);
                 routeVO.setRecommendedWaypointLng(null);
@@ -459,14 +461,23 @@ public class RouteServiceImpl implements RouteService {
             routeVO.setWeatherRiskLevel(adviceVO.getWeatherRiskLevel());
             routeVO.setWeatherRiskType(adviceVO.getWeatherRiskType());
             routeVO.setSmartTravelAdvice(adviceVO.getSmartTravelAdvice());
-            routeVO.setRecommendedWaypointName(adviceVO.getRecommendedWaypointName());
             routeVO.setRecommendedStrategyTag(adviceVO.getRecommendedStrategyTag());
+            List<RouteAdviceWaypointVO> recommendedWaypoints = adviceVO.getRecommendedWaypoints();
+            routeVO.setRecommendedWaypoints(recommendedWaypoints == null ? List.of() : recommendedWaypoints);
+            routeVO.setRecommendedWaypointName(adviceVO.getRecommendedWaypointName());
             routeVO.setRecommendedWaypointLng(adviceVO.getRecommendedWaypointLng());
             routeVO.setRecommendedWaypointLat(adviceVO.getRecommendedWaypointLat());
+            if (routeMode == RouteMode.CYCLING) {
+                routeVO.setRecommendedWaypoints(List.of());
+                routeVO.setRecommendedWaypointName(null);
+                routeVO.setRecommendedWaypointLng(null);
+                routeVO.setRecommendedWaypointLat(null);
+            }
         } catch (Exception ignored) {
             routeVO.setWeatherRiskLevel(null);
             routeVO.setWeatherRiskType(null);
             routeVO.setSmartTravelAdvice(null);
+            routeVO.setRecommendedWaypoints(List.of());
             routeVO.setRecommendedWaypointName(null);
             routeVO.setRecommendedStrategyTag(null);
             routeVO.setRecommendedWaypointLng(null);

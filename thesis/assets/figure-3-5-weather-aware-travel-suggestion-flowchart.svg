@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+  <defs>
+    <style>
+      .bg{fill:#fff}
+      .box{fill:#f8fafc;stroke:#334155;stroke-width:2.2}
+      .blue{fill:#eaf3ff;stroke:#2563eb}
+      .green{fill:#eafaf2;stroke:#15935f}
+      .orange{fill:#fff3e3;stroke:#e17b24}
+      .purple{fill:#f3ecff;stroke:#7c3fc4}
+      .red{fill:#fff1f2;stroke:#e11d48}
+      .line{stroke:#475569;stroke-width:3;fill:none;marker-end:url(#arrow)}
+      .plain-line{stroke:#475569;stroke-width:2.6;fill:none}
+      .text{font-family:"Times New Roman",Arial,sans-serif;fill:#111827}
+      .title{font-size:30px;font-weight:700}
+      .label{font-size:23px}
+      .small{font-size:19px}
+      .tiny{font-size:17px}
+      .bold{font-weight:700}
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0 0 L12 6 L0 12 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1500" height="900"/>
+  
+<rect class="box blue" x="155" y="90" width="360" height="80" rx="16"/>
+<text class="text label bold" x="335" y="138" text-anchor="middle">Request Current Weather</text>
+
+<path class="line" d="M515 130 L635 130"/>
+<rect class="box orange" x="635" y="90" width="360" height="80" rx="16"/>
+<text class="text label bold" x="815" y="138" text-anchor="middle">Call QWeather API</text>
+
+<path class="line" d="M995 130 L1115 130"/>
+<rect class="box green" x="1115" y="90" width="260" height="80" rx="16"/>
+<text class="text label bold" x="1245" y="138" text-anchor="middle">Return Weather</text>
+
+<path class="line" d="M1245 170 L1245 255 L750 255 L750 315"/>
+<rect class="box purple" x="540" y="325" width="420" height="80" rx="16"/>
+<text class="text label bold" x="750" y="373" text-anchor="middle">Combine Route Context</text>
+
+<path class="line" d="M750 405 L750 475"/>
+<rect class="box green" x="520" y="485" width="460" height="80" rx="16"/>
+<text class="text label bold" x="750" y="533" text-anchor="middle">Generate Travel Suggestion</text>
+
+<path class="line" d="M750 565 L750 635"/>
+<rect class="box blue" x="505" y="645" width="490" height="80" rx="16"/>
+<text class="text label bold" x="750" y="693" text-anchor="middle">Display Weather and Suggestion</text>
+
+
+</svg>
